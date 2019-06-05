@@ -7,7 +7,7 @@
 
 #define EPSILON 0.00001
 
-float abs(float f){
+float absolute(float f){
     if(f < 0){
         f = f * -1;
     }
@@ -15,7 +15,7 @@ float abs(float f){
 }
 
 bool equal(float f1, float f2){
-    return abs(f1 - f2) < EPSILON;
+    return absolute(f1 - f2) < EPSILON;
 }
 
 #endif //RAYTRACERCHALLENGE_UTIL_H
