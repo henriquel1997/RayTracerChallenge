@@ -3,4 +3,4 @@ project(RayTracerChallenge)
 
 set(CMAKE_CXX_STANDARD 11)
 
-add_executable(RayTracerChallenge main.cpp tuples.h util.h projectile.h color.h canvas.h matrix.h transformations.h clock.h)
+add_executable(RayTracerChallenge main.cpp tuples.h util.h projectile.h color.h canvas.h matrix.h transformations.h clock.h ray.h)
