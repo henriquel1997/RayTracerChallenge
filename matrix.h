@@ -5,6 +5,7 @@
 #ifndef RAYTRACERCHALLENGE_MATRIX_H
 #define RAYTRACERCHALLENGE_MATRIX_H
 
+#include "tuples.h"
 #include "util.h"
 
 struct Matrix2x2{
@@ -133,6 +134,197 @@ bool operator == (Matrix2x2 m1, Matrix2x2 m2){
 
 bool operator != (Matrix2x2 m1, Matrix2x2 m2){
     return !(m1 == m2);
+}
+
+Matrix4x4 multiply(Matrix4x4 m1, Matrix4x4 m2){
+    auto resultado = Matrix4x4();
+
+    for(int row = 0; row < 4; row++){
+        for(int col = 0; col < 4; col++){
+            resultado[row][col] = (m1[row][0] * m2[0][col]) +
+                                  (m1[row][1] * m2[1][col]) +
+                                  (m1[row][2] * m2[2][col]) +
+                                  (m1[row][3] * m2[3][col]);
+        }
+    }
+
+    return resultado;
+}
+
+Matrix4x4 operator * (Matrix4x4 m1, Matrix4x4 m2){
+    return multiply(m1, m2);
+}
+
+Tuple multiply(Matrix4x4 m, Tuple t){
+    auto resultado = Tuple{};
+
+    resultado.x = (t.x * m[0][0]) + (t.y * m[0][1]) + (t.z * m[0][2]) + (t.w * m[0][3]);
+    resultado.y = (t.x * m[1][0]) + (t.y * m[1][1]) + (t.z * m[1][2]) + (t.w * m[1][3]);
+    resultado.z = (t.x * m[2][0]) + (t.y * m[2][1]) + (t.z * m[2][2]) + (t.w * m[2][3]);
+    resultado.w = (t.x * m[3][0]) + (t.y * m[3][1]) + (t.z * m[3][2]) + (t.w * m[3][3]);
+
+    return resultado;
+}
+
+Tuple operator * (Matrix4x4 m, Tuple t){
+    return multiply(m, t);
+}
+
+Tuple operator * (Tuple t, Matrix4x4 m){
+    return multiply(m, t);
+}
+
+Matrix4x4 identity(){
+    return {};
+}
+
+Matrix4x4 transpose(Matrix4x4 m){
+    auto transpose = Matrix4x4();
+
+    for(int x = 0; x < 4; x++){
+        for(int y = 0; y < 4; y++){
+            transpose[x][y] = m[y][x];
+        }
+    }
+
+    return transpose;
+}
+
+float determinant(Matrix2x2 m){
+    return (m[0][0] * m[1][1]) - (m[0][1] * m[1][0]);
+}
+
+Matrix3x3 submatrix(Matrix4x4 m, unsigned int row, unsigned int column){
+
+    auto sub = Matrix3x3();
+
+    if(row < 4 && column < 4){
+        int rowSub = 0, colSub = 0;
+        for(int x = 0; x < 4; x++){
+            if(x != row){
+                for(int y = 0; y < 4; y++){
+                    if(y != column){
+                        sub[rowSub][colSub++] = m[x][y];
+                    }
+                }
+                rowSub++;
+                colSub = 0;
+            }
+        }
+    }
+
+    return sub;
+}
+
+Matrix2x2 submatrix(Matrix3x3 m, unsigned int row, unsigned int column){
+
+    auto sub = Matrix2x2();
+
+    if(row < 3 && column < 3){
+        int rowSub = 0, colSub = 0;
+        for(int x = 0; x < 3; x++){
+            if(x != row){
+                for(int y = 0; y < 3; y++){
+                    if(y != column){
+                        sub[rowSub][colSub++] = m[x][y];
+                    }
+                }
+                rowSub++;
+                colSub = 0;
+            }
+        }
+    }
+
+    return sub;
+}
+
+float minor(Matrix3x3 m, unsigned int row, unsigned int column){
+    return determinant(submatrix(m, row, column));
+}
+
+float cofactor(Matrix3x3 m, unsigned int row, unsigned int column){
+    auto cf = minor(m, row, column);
+    if((row + column) % 2 != 0){
+        cf = -cf;
+    }
+    return cf;
+}
+
+float determinant(Matrix3x3 m){
+    auto cf1 = cofactor(m, 0, 0);
+    auto cf2 = cofactor(m, 0, 1);
+    auto cf3 = cofactor(m, 0, 2);
+    auto det = (m[0][0] * cf1) + (m[0][1] * cf2) + (m[0][2] * cf3);
+    return det;
+}
+
+float minor(Matrix4x4 m, unsigned int row, unsigned int column){
+    return determinant(submatrix(m, row, column));
+}
+
+float cofactor(Matrix4x4 m, unsigned int row, unsigned int column){
+    auto cf = minor(m, row, column);
+    if((row + column) % 2 != 0){
+        cf = -cf;
+    }
+    return cf;
+}
+
+float determinant(Matrix4x4 m){
+    return (m[0][0] * cofactor(m, 0, 0)) + (m[0][1] * cofactor(m, 0, 1)) + (m[0][2] * cofactor(m, 0, 2)) + (m[0][3] * cofactor(m, 0, 3));
+}
+
+Matrix4x4 inverse(Matrix4x4 m){
+    auto inv = Matrix4x4();
+    auto det = determinant(m);
+
+    //Check if m is invertible
+    if(det != 0){
+        for(unsigned int row = 0; row < 4; row++){
+            for(unsigned int col = 0; col < 4; col++){
+                auto cf = cofactor(m, row, col);
+                inv[col][row] = cf / det;
+            }
+        }
+    }
+
+    return inv;
+}
+
+void printMatrix(Matrix4x4 m){
+    for(int x = 0; x < 4; x++){
+        for(int y = 0; y < 4; y++){
+            printf("%f", m[x][y]);
+            if(y < 3){
+                printf(", ");
+            }
+        }
+        printf("\n");
+    }
+}
+
+void printMatrix(Matrix3x3 m){
+    for(int x = 0; x < 3; x++){
+        for(int y = 0; y < 3; y++){
+            printf("%f", m[x][y]);
+            if(y < 2){
+                printf(", ");
+            }
+        }
+        printf("\n");
+    }
+}
+
+void printMatrix(Matrix2x2 m){
+    for(int x = 0; x < 2; x++){
+        for(int y = 0; y < 2; y++){
+            printf("%f", m[x][y]);
+            if(y < 1){
+                printf(", ");
+            }
+        }
+        printf("\n");
+    }
 }
 
 #endif //RAYTRACERCHALLENGE_MATRIX_H
