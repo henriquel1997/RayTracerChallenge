@@ -11,6 +11,24 @@
 #include "matrix.h"
 #include "canvas.h"
 
+struct Intersection{
+    unsigned int id;
+    float time;
+};
+
+struct Light{
+    Tuple position;
+    Color intensity;
+};
+
+struct Material{
+    Color color;
+    float ambient;
+    float diffuse;
+    float specular;
+    float shininess;
+};
+
 struct Ray {
     Tuple origin;
     Tuple direction;
@@ -21,24 +39,15 @@ struct Sphere{
     Tuple origin;
     float radius;
     Matrix4x4 transform;
-};
-
-struct Intersection{
-    unsigned int id;
-    float time;
+    Material material;
 };
 
 Ray ray(float originX, float originY, float originZ, float directionX, float directionY, float directionZ){
     return Ray {point(originX, originY, originZ), vector(directionX, directionY, directionZ)};
 }
 
-Tuple position(Ray* ray, float time){
-    return ray ->origin + (ray->direction * time);
-}
-
-Sphere sphere(){
-    static unsigned int cont = 0;
-    return Sphere{cont++, point(0, 0, 0), 1, Matrix4x4()};
+Tuple position(Ray ray, float time){
+    return ray.origin + (ray.direction * time);
 }
 
 Ray transform(Ray ray, Matrix4x4 matrix){
@@ -87,9 +96,68 @@ Intersection hit(const std::vector<Intersection>& intersections){
     return hit;
 }
 
-void castRays(){
+Material material(){
+    return Material{ Color{1, 1, 1}, 0.1f, 0.9f, 0.9f, 200 };
+}
 
-    unsigned int canvasPixels = 1000;
+Sphere sphere(){
+    static unsigned int cont = 0;
+    return Sphere{cont++, point(0, 0, 0), 1, Matrix4x4(), material()};
+}
+
+Tuple normalAt(Sphere sphere, Tuple p){
+    auto objectPoint = inverse(sphere.transform) * p;
+    auto objectNormal = objectPoint - sphere.origin;
+    auto worldNormal = transpose(inverse(sphere.transform)) * objectNormal;
+    worldNormal.w = 0;
+    return normalize(worldNormal);
+}
+
+Tuple reflect(Tuple v, Tuple normal){
+    return v - (normal * 2 * dot(v, normal));
+}
+
+Light pointLight(Tuple position, Color intensity){
+    return Light{point(position.x, position.y, position.z), intensity};
+}
+
+Color lighting(Material material, Light light, Tuple point, Tuple eyev, Tuple normalv){
+    //Combine the surface color with the light's color/intensity
+    auto effectiveColor = material.color * light.intensity;
+
+    //Find the direction to the light source
+    auto lightv = normalize(light.position - point);
+
+    //Compute the ambient contribution
+    auto ambient = effectiveColor * material.ambient;
+
+    //lightDotNormal represents the cosine of the angle between the light vector and the normal vector.
+    //A negative number means the light is on the other side of the surface.
+    auto lightDotNormal = dot(lightv, normalv);
+
+    auto diffuse = Color{0, 0, 0};
+    auto specular = Color{0, 0, 0};
+
+    if(lightDotNormal >= 0){
+        //Compute the diffuse contribuition
+        diffuse = effectiveColor * material.diffuse * lightDotNormal;
+
+        //reflectDotEye represents the cosine of the angle between the reflection vector and the eye vector.
+        //A negative number means the light reflects away from the eye.
+        auto reflectv = reflect(-lightv, normalv);
+        auto reflectDotEye = dot(reflectv, eyev);
+
+        if(reflectDotEye > 0){
+            //Compute the specular contribuition
+            auto factor = pow(reflectDotEye, material.shininess);
+            specular = light.intensity * material.specular * factor;
+        }
+    }
+
+    return ambient + diffuse + specular;
+}
+
+void drawSphereRaycast(unsigned int canvasPixels){
 
     auto c = canvas(canvasPixels, canvasPixels);
     auto s = sphere();
@@ -117,6 +185,46 @@ void castRays(){
     }
 
     canvasToPNG(&c, "sphere.png");
+}
+
+void drawSpherePhong(unsigned int canvasPixels){
+
+    auto c = canvas(canvasPixels, canvasPixels);
+    auto s = sphere();
+    s.material.color = Color{ 1, 0.2, 1 };
+
+    auto light = pointLight(point(-10, 10, -10), Color{1, 1, 1});
+
+    auto rayOrigin = point(0, 0, -5);
+    float wallSize = 7;
+    float wallZ = 10;
+    float pixelSize = wallSize / canvasPixels;
+    float half = wallSize / 2;
+
+    for(unsigned int y = 0; y < c.height; y++){
+
+        auto worldY = half - pixelSize * y;
+
+        for(unsigned int x = 0; x < c.width; x++){
+
+            auto worldX = - half + pixelSize * x;
+            auto ray = Ray{rayOrigin, normalize(point(worldX, worldY, wallZ) - rayOrigin)};
+            ray.direction = normalize(ray.direction);
+
+            auto closest = hit(intersect(ray, s));
+
+            if(closest.time >= 0){
+                auto point = position(ray, closest.time);
+                auto normal = normalAt(s, point);
+                auto eye = - ray.direction;
+
+                auto color = lighting(s.material, light, point, eye, normal);
+                writePixel(&c, x, y, color);
+            }
+        }
+    }
+
+    canvasToPNG(&c, "phong.png");
 }
 
 #endif //RAYTRACERCHALLENGE_RAY_H

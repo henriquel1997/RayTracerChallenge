@@ -2,8 +2,6 @@
 #include "ray.h"
 
 int main() {
-
-    castRays();
-
-    return 0;
+    //drawSphereRaycast(1000);
+    drawSpherePhong(1000);
 }

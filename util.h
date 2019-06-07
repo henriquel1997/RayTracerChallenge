@@ -23,4 +23,14 @@ float radians(float degrees){
     return (degrees / 180) * PI;
 }
 
+float clamp(float val, float min, float max){
+    if(val > max){
+        return max;
+    }
+    if(val < min){
+        return min;
+    }
+    return val;
+}
+
 #endif //RAYTRACERCHALLENGE_UTIL_H

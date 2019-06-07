@@ -51,6 +51,9 @@ void canvasToPNG(Canvas* canvas, const char* pathAndName){
 
     for(unsigned int i = 0; i < canvas->width * canvas->height; i++){
         auto pixel = canvas->pixels[i];
+        pixel.red = clamp(pixel.red, 0.f, 1.f);
+        pixel.green = clamp(pixel.green, 0.f, 1.f);
+        pixel.blue = clamp(pixel.blue, 0.f, 1.f);
 
         canvasRGB[(3*i) + 0] = (unsigned char) (255 * pixel.red);
         canvasRGB[(3*i) + 1] = (unsigned char) (255 * pixel.green);
