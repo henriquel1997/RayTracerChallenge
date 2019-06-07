@@ -1,9 +1,9 @@
 #include <cstdio>
-#include "clock.h"
+#include "ray.h"
 
 int main() {
 
-    drawClock();
+    castRays();
 
     return 0;
 }

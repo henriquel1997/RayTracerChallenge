@@ -47,7 +47,7 @@ void writePixel(Canvas* canvas, unsigned int x, unsigned int y, Color color){
 
 void canvasToPNG(Canvas* canvas, const char* pathAndName){
 
-    unsigned char canvasRGB [3 * canvas->width * canvas->height];
+    auto canvasRGB  = new unsigned char [3 * canvas->width * canvas->height];
 
     for(unsigned int i = 0; i < canvas->width * canvas->height; i++){
         auto pixel = canvas->pixels[i];

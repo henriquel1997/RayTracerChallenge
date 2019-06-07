@@ -33,8 +33,7 @@ void drawProjectile(Canvas* canvas, Projectile* projectile){
 }
 
 void executeTick(){
-    auto velocity = vector(1, 1.8, 0);
-    Projectile p = Projectile{point(0, 1, 0), normalize(&velocity) * 11.25 };
+    Projectile p = Projectile{point(0, 1, 0), normalize(vector(1, 1.8, 0)) * 11.25 };
     Environment e = Environment { vector(0, -0.1f, 0), vector(-0.01f, 0, 0) };
 
     auto c = canvas(900, 550);
