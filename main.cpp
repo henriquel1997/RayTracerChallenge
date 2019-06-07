@@ -3,5 +3,5 @@
 
 int main() {
     //drawSphereRaycast(1000);
-    drawSpherePhong(100);
+    drawSpherePhong(1000);
 }

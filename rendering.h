@@ -66,6 +66,36 @@ struct Computations{
     bool inside;
 };
 
+struct Camera{
+    unsigned int hSize;
+    unsigned int vSize;
+    float fieldOfView;
+    float pixelSize;
+    float halfWidth;
+    float halfHeight;
+    Matrix4x4 transform;
+
+    Camera(unsigned int hSize, unsigned int vSize, float fieldOfView){
+        this->hSize = hSize;
+        this->vSize = vSize;
+        this->fieldOfView = fieldOfView;
+        this->transform = Matrix4x4();
+
+        auto halfView = tanf(fieldOfView/2);
+        auto aspectRatio = hSize / vSize;
+
+        if(aspectRatio >= 1){
+            this->halfWidth = halfView;
+            this->halfHeight = halfView/aspectRatio;
+        }else{
+            this->halfWidth = halfView/aspectRatio;
+            this->halfHeight = halfView;
+        }
+
+        this->pixelSize = (this->halfWidth * 2) / hSize;
+    }
+};
+
 struct World{
     std::vector<Light> lightSources = std::vector<Light>();
     std::vector<Object> objects  = std::vector<Object>();;
@@ -220,6 +250,72 @@ Computations prepareComputations(Ray ray, Intersection intersection){
     }
 
     return comps;
+}
+
+Color shadeHit(World world, Computations comps){
+    auto material = Material();
+    auto pSphere = dynamic_cast<Sphere*>(comps.intersection.object);
+    if(pSphere != nullptr){
+        material = pSphere->material;
+    }
+
+    auto color = Color();
+    for(auto light: world.lightSources){
+        color = color + lighting(material, light, comps.point, comps.eyev, comps.normalv);
+    }
+    return color;
+}
+
+Color colorAt(Ray ray, const World& world){
+    auto intersections = intersectWorld(ray, world);
+    auto h = hit(intersections);
+    auto color = Color{0, 0, 0};
+
+    if(h.time >= 0){
+        auto comps = prepareComputations(ray, h);
+        color = shadeHit(world, comps);
+    }
+
+    return color;
+}
+
+Matrix4x4 viewTransform(Tuple from, Tuple to, Tuple up){
+    auto forward = normalize(to - from);
+    auto left = cross(forward, normalize(up));
+    auto trueUp = cross(left, forward);
+    auto orientation = Matrix4x4(left.x,     left.y,     left.z,     0,
+                                 trueUp.x,   trueUp.y,   trueUp.z,   0,
+                                 -forward.x, -forward.y, -forward.z, 0,
+                                 0,          0,          0,          1);
+    return orientation * translation(-from.x, -from.y, -from.z);
+}
+
+Ray rayForPixel(Camera camera, unsigned int x, unsigned int y){
+    auto xOffset = (x + 0.5f) * camera.pixelSize;
+    auto yOffset = (y + 0.5f) * camera.pixelSize;
+
+    auto worldX = camera.halfWidth - xOffset;
+    auto worldY = camera.halfHeight - yOffset;
+
+    auto pixel = inverse(camera.transform) * point(worldX, worldY, -1);
+    auto origin = inverse(camera.transform) * point(0, 0, 0);
+    auto direction = normalize(pixel - origin);
+
+    return Ray{origin, direction};
+}
+
+Canvas render(Camera camera, const World& world){
+    auto image = canvas(camera.hSize, camera.vSize);
+
+    for(unsigned int y = 0; y < camera.vSize; y++){
+        for(unsigned int x = 0; x < camera.hSize; x++){
+            auto ray = rayForPixel(camera, x, y);
+            auto color = colorAt(ray, world);
+            writePixel(&image, x, y, color);
+        }
+    }
+
+    return image;
 }
 
 void drawSphereRaycast(unsigned int canvasPixels){
