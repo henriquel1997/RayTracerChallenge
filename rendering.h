@@ -11,37 +11,8 @@
 #include <vector>
 #include "ray.h"
 #include "transformations.h"
-
-struct Material{
-    Color color{};
-    double ambient;
-    double diffuse;
-    double specular;
-    double shininess;
-
-    Material(){
-        color = Color{1, 1, 1};
-        ambient = 0.1f;
-        diffuse = 0.9f;
-        specular = 0.9f;
-        shininess = 200;
-    }
-};
-
-struct Object {
-    unsigned int id;
-    Matrix4x4 transform;
-    Material material;
-
-    Object(){
-        static unsigned int cont = 0;
-        id = cont++;
-        transform = Matrix4x4();
-        material = Material();
-    }
-
-    virtual ~Object() = default;
-};
+#include "pattern.h"
+#include "structs.h"
 
 struct Sphere : Object {
     Tuple origin{};
@@ -105,6 +76,11 @@ struct World{
 
     World() = default;
 };
+
+void addPattern(Material* material, Pattern* pattern){
+    material->hasPattern = true;
+    material->pattern = pattern;
+}
 
 //Expects a local ray (needs to go through transform(ray, inverse(sphere.transform)))
 std::vector<Intersection> localIntersect(Ray ray, Sphere* sphere){
@@ -198,9 +174,17 @@ Tuple normalAt(Object* object, Tuple p){
     return normalize(worldNormal);
 }
 
-Color lighting(Material material, Light light, Tuple point, Tuple eyev, Tuple normalv, bool inShadow){
+Color lighting(Material material, Object* object, Light light, Tuple point, Tuple eyev, Tuple normalv, bool inShadow){
+
+    Color color{};
+    if(material.hasPattern){
+        color = patternAtObject(material.pattern, object, point);
+    }else{
+        color = material.color;
+    }
+
     //Combine the surface color with the light's color/intensity
-    auto effectiveColor = material.color * light.intensity;
+    auto effectiveColor = color * light.intensity;
 
     //Compute the ambient contribution
     auto ambient = effectiveColor * material.ambient;
@@ -216,8 +200,8 @@ Color lighting(Material material, Light light, Tuple point, Tuple eyev, Tuple no
     //A negative number means the light is on the other side of the surface.
     auto lightDotNormal = dot(lightv, normalv);
 
-    auto diffuse = Color{0, 0, 0};
-    auto specular = Color{0, 0, 0};
+    auto diffuse = BLACK;
+    auto specular = BLACK;
 
     if(lightDotNormal >= 0){
         //Compute the diffuse contribuition
@@ -241,7 +225,8 @@ Color lighting(Material material, Light light, Tuple point, Tuple eyev, Tuple no
 World defaultWorld(){
     auto world = World();
 
-    auto defaulLight = pointLight(Tuple{-10, 10, -10}, Color{1, 1, 1});
+    auto color = WHITE;
+    auto defaulLight = pointLight(Tuple{-10, 10, -10}, color);
     world.lightSources.push_back(defaulLight);
 
     auto s1 = Sphere();
@@ -310,10 +295,10 @@ bool isShadowed(World world, Tuple point){
 Color shadeHit(World world, Computations comps, bool shadows){
     auto material = comps.intersection.object->material;
 
-    auto color = Color();
+    auto color = BLACK;
     for(auto light: world.lightSources){
         auto shadowed = shadows && isShadowed(world, comps.overPoint);
-        color = color + lighting(material, light, comps.overPoint, comps.eyev, comps.normalv, shadowed);
+        color = color + lighting(material, comps.intersection.object, light, comps.overPoint, comps.eyev, comps.normalv, shadowed);
     }
     return color;
 }
@@ -321,7 +306,7 @@ Color shadeHit(World world, Computations comps, bool shadows){
 Color colorAt(Ray ray, const World& world, bool shadows){
     auto intersections = intersectWorld(ray, world);
     auto h = hit(intersections);
-    auto color = Color{0, 0, 0};
+    auto color = BLACK;
 
     if(h.time >= 0){
         auto comps = prepareComputations(ray, h);
@@ -368,163 +353,6 @@ Canvas render(Camera camera, const World& world, bool shadows){
     }
 
     return image;
-}
-
-void drawSphereRaycast(unsigned int canvasPixels){
-
-    auto c = canvas(canvasPixels, canvasPixels);
-    auto s = Sphere();
-
-    auto rayOrigin = point(0, 0, -5);
-    double wallSize = 7;
-    double wallZ = 10;
-    double pixelSize = wallSize / canvasPixels;
-    double half = wallSize / 2;
-
-    for(unsigned int y = 0; y < c.height; y++){
-
-        auto worldY = half - pixelSize * y;
-
-        for(unsigned int x = 0; x < c.width; x++){
-
-            auto worldX = - half + pixelSize * x;
-            auto position = point(worldX, worldY, wallZ);
-            auto ray = Ray{rayOrigin, normalize(position - rayOrigin)};
-
-            if(hit(intersect(ray, &s)).time >= 0){
-                writePixel(&c, x, y, Color{1, 0, 0});
-            }
-        }
-    }
-
-    canvasToPNG(&c, "sphere.png");
-}
-
-void drawSpherePhong(unsigned int canvasPixels){
-
-    auto c = canvas(canvasPixels, canvasPixels);
-    auto s = Sphere();
-    s.material.color = Color{ 1, 0.2, 1 };
-
-    auto light = pointLight(point(-10, 10, -10), Color{1, 1, 1});
-
-    auto rayOrigin = point(0, 0, -5);
-    double wallSize = 7;
-    double wallZ = 10;
-    double pixelSize = wallSize / canvasPixels;
-    double half = wallSize / 2;
-
-    for(unsigned int y = 0; y < c.height; y++){
-
-        auto worldY = half - pixelSize * y;
-
-        for(unsigned int x = 0; x < c.width; x++){
-
-            auto worldX = - half + pixelSize * x;
-            auto ray = Ray{rayOrigin, normalize(point(worldX, worldY, wallZ) - rayOrigin)};
-            ray.direction = normalize(ray.direction);
-
-            auto closest = hit(intersect(ray, &s));
-
-            if(closest.time >= 0){
-                auto point = position(ray, closest.time);
-                auto normal = normalAt(&s, point);
-                auto eye = - ray.direction;
-
-                auto color = lighting(s.material, light, point, eye, normal, false);
-                writePixel(&c, x, y, color);
-            }
-        }
-    }
-
-    canvasToPNG(&c, "phong.png");
-}
-
-void drawWorldScene(unsigned int width, unsigned int height, bool shadows){
-    auto floor = Sphere();
-    floor.transform = scaling(10, 0.01, 10);
-    floor.material.color = Color{ 1, 0.9f, 0.9f };
-    floor.material.specular = 0;
-
-    auto leftWall = Sphere();
-    leftWall.transform = translation(0, 0, 5) * rotationY(-PI/4) * rotationX(PI/2) * scaling(10, 0.01, 10);
-    leftWall.material = floor.material;
-
-    auto rightWall = Sphere();
-    rightWall.transform = translation(0, 0, 5) * rotationY(PI/4) * rotationX(PI/2) * scaling(10, 0.01, 10);
-    rightWall.material = floor.material;
-
-    auto middle = Sphere();
-    middle.transform = translation(-.5f, 1.f, .5f);
-    middle.material.color = Color{ 0.1f, 1, .5f };
-    middle.material.diffuse = 0.7f;
-    middle.material.specular = 0.3f;
-
-    auto right = Sphere();
-    right.transform = translation(1.5f, .5f, -.5f) * scaling(.5f, .5f, .5f);
-    right.material.color = Color{ 0.5f, 1, .1f };
-    right.material.diffuse = 0.7f;
-    right.material.specular = 0.3f;
-
-    auto left = Sphere();
-    left.transform = translation(-1.5f, .33f, -.75f) * scaling(.33f, .33f, .33f);
-    left.material.color = Color{ 1.f, .8f, .1f };
-    left.material.diffuse = 0.7f;
-    left.material.specular = 0.3f;
-
-    auto world = World();
-    world.lightSources.push_back(pointLight(point(-10, 10, -10), Color{ 1, 1, 1 }));
-    world.objects.push_back(&floor);
-    world.objects.push_back(&leftWall);
-    world.objects.push_back(&rightWall);
-    world.objects.push_back(&middle);
-    world.objects.push_back(&right);
-    world.objects.push_back(&left);
-
-    auto camera = Camera(width, height, PI/3);
-    camera.transform = viewTransform(point(0, 1.5f, -5), point(0, 1, 0), vector(0, 1, 0));
-
-    auto canvas = render(camera, world, shadows);
-    canvasToPNG(&canvas, "world.png");
-}
-
-void drawPlaneScene(unsigned int width, unsigned int height, bool shadows){
-
-    auto plane = Plane();
-    plane.material.color = Color{ 0.82f, 0.82f, 0.82f };
-    plane.material.diffuse = 0.7f;
-    plane.material.specular = 0.3f;
-
-    auto middle = Sphere();
-    middle.transform = translation(-.5f, 1.f, .5f);
-    middle.material.color = Color{ 0.1f, 1, .5f };
-    middle.material.diffuse = 0.7f;
-    middle.material.specular = 0.3f;
-
-    auto right = Sphere();
-    right.transform = translation(1.5f, .5f, -.5f) * scaling(.5f, .5f, .5f);
-    right.material.color = Color{ 0.5f, 1, .1f };
-    right.material.diffuse = 0.7f;
-    right.material.specular = 0.3f;
-
-    auto left = Sphere();
-    left.transform = translation(-1.5f, .33f, -.75f) * scaling(.33f, .33f, .33f);
-    left.material.color = Color{ 1.f, .8f, .1f };
-    left.material.diffuse = 0.7f;
-    left.material.specular = 0.3f;
-
-    auto world = World();
-    world.lightSources.push_back(pointLight(point(-10, 10, -10), Color{ 1, 1, 1 }));
-    world.objects.push_back(&plane);
-    world.objects.push_back(&middle);
-    world.objects.push_back(&right);
-    world.objects.push_back(&left);
-
-    auto camera = Camera(width, height, PI/3);
-    camera.transform = viewTransform(point(0, 1.5f, -5), point(0, 1, 0), vector(0, 1, 0));
-
-    auto canvas = render(camera, world, shadows);
-    canvasToPNG(&canvas, "plane.png");
 }
 
 #endif //RAYTRACERCHALLENGE_RENDERING_H

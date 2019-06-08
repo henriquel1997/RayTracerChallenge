@@ -13,6 +13,12 @@ struct Color{
     double blue;
 };
 
+#define BLACK Color{0, 0, 0};
+#define WHITE Color{1, 1, 1};
+#define RED Color{1, 0, 0};
+#define GREEN Color{0, 1, 0};
+#define BLUE Color{0, 0, 1};
+
 Color add(Color* c1, Color* c2){
     return Color{ c1->red + c2->red, c1->green + c2->green, c1->blue + c2->blue };
 }
@@ -47,6 +53,10 @@ Color multByColor(Color* c1, Color* c2){
 
 Color operator * (Color c1, Color c2){
     return multByColor(&c1, &c2);
+}
+
+Color interpolate(Color a, Color b, double amount){
+    return a + ((b - a) * amount);
 }
 
 #endif //RAYTRACERCHALLENGE_COLOR_H
