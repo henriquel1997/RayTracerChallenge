@@ -1,7 +1,7 @@
 #include "rendering.h"
 
 int main() {
-    //drawSphereRaycast(1000);
-    //drawSpherePhong(1000);
-    drawWorldScene(1000, 500, true);
+    //drawSphereRaycast(100);
+    //drawSpherePhong(100);
+    drawWorldScene(100, 50, true);
 }

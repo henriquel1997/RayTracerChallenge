@@ -103,7 +103,7 @@ Tuple operator / (Tuple t, double f){
 }
 
 double length(Tuple t){
-    return sqrtf((t.x * t.x) + (t.y * t.y) + (t.z * t.z) + (t.w * t.w));
+    return sqrt((t.x * t.x) + (t.y * t.y) + (t.z * t.z) + (t.w * t.w));
 }
 
 double lengthSquared(Tuple t){
