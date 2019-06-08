@@ -53,6 +53,8 @@ struct Sphere : Object {
     }
 };
 
+struct Plane : Object {};
+
 struct Intersection{
     Object* object;
     double time;
@@ -132,6 +134,15 @@ std::vector<Intersection> localIntersect(Ray ray, Sphere* sphere){
     return lista;
 }
 
+std::vector<Intersection> localIntersect(Ray ray, Plane* plane){
+    auto lista = std::vector<Intersection>();
+    if(absolute(ray.direction.y) >= EPSILON){
+        auto time = (-ray.origin.y) / ray.direction.y;
+        lista.push_back(Intersection{plane, time});
+    }
+    return lista;
+}
+
 std::vector<Intersection> intersect(Ray ray, Object* object){
     auto localRay = transform(ray, inverse(object->transform));
 
@@ -139,6 +150,12 @@ std::vector<Intersection> intersect(Ray ray, Object* object){
     if(pSphere != nullptr){
         return localIntersect(localRay, pSphere);
     }
+
+    auto pPlane = dynamic_cast<Plane*>(object);
+    if(pPlane != nullptr){
+        return localIntersect(localRay, pPlane);
+    }
+
     return std::vector<Intersection>();
 }
 
@@ -157,6 +174,10 @@ Tuple localNormalAt(Sphere* sphere, Tuple p){
     return p - sphere->origin;
 }
 
+Tuple localNormalAt(Plane* plane){
+    return vector(0, 1, 0);
+}
+
 Tuple normalAt(Object* object, Tuple p){
     auto localPoint = inverse(object->transform) * p;
     auto localNormal = vector(0, 0, 0);
@@ -164,6 +185,11 @@ Tuple normalAt(Object* object, Tuple p){
     auto pSphere = dynamic_cast<Sphere*>(object);
     if(pSphere != nullptr){
         localNormal = localNormalAt(pSphere, localPoint);
+    }else{
+        auto pPlane = dynamic_cast<Plane*>(object);
+        if(pPlane != nullptr){
+            localNormal = localNormalAt(pPlane);
+        }
     }
 
     auto worldNormal = transpose(inverse(object->transform)) * localNormal;
@@ -460,6 +486,45 @@ void drawWorldScene(unsigned int width, unsigned int height, bool shadows){
 
     auto canvas = render(camera, world, shadows);
     canvasToPNG(&canvas, "world.png");
+}
+
+void drawPlaneScene(unsigned int width, unsigned int height, bool shadows){
+
+    auto plane = Plane();
+    plane.material.color = Color{ 0.82f, 0.82f, 0.82f };
+    plane.material.diffuse = 0.7f;
+    plane.material.specular = 0.3f;
+
+    auto middle = Sphere();
+    middle.transform = translation(-.5f, 1.f, .5f);
+    middle.material.color = Color{ 0.1f, 1, .5f };
+    middle.material.diffuse = 0.7f;
+    middle.material.specular = 0.3f;
+
+    auto right = Sphere();
+    right.transform = translation(1.5f, .5f, -.5f) * scaling(.5f, .5f, .5f);
+    right.material.color = Color{ 0.5f, 1, .1f };
+    right.material.diffuse = 0.7f;
+    right.material.specular = 0.3f;
+
+    auto left = Sphere();
+    left.transform = translation(-1.5f, .33f, -.75f) * scaling(.33f, .33f, .33f);
+    left.material.color = Color{ 1.f, .8f, .1f };
+    left.material.diffuse = 0.7f;
+    left.material.specular = 0.3f;
+
+    auto world = World();
+    world.lightSources.push_back(pointLight(point(-10, 10, -10), Color{ 1, 1, 1 }));
+    world.objects.push_back(&plane);
+    world.objects.push_back(&middle);
+    world.objects.push_back(&right);
+    world.objects.push_back(&left);
+
+    auto camera = Camera(width, height, PI/3);
+    camera.transform = viewTransform(point(0, 1.5f, -5), point(0, 1, 0), vector(0, 1, 0));
+
+    auto canvas = render(camera, world, shadows);
+    canvasToPNG(&canvas, "plane.png");
 }
 
 #endif //RAYTRACERCHALLENGE_RENDERING_H
