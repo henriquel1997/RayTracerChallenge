@@ -28,25 +28,17 @@ struct Material{
     }
 };
 
-struct Object{
+struct Sphere {
     unsigned int id;
     Tuple origin{};
-
-    explicit Object(Tuple o = point(0, 0, 0)){
-        static unsigned int cont = 0;
-        id = cont++;
-        origin = o;
-    }
-
-    virtual ~Object() = default;
-};
-
-struct Sphere: Object {
     float radius;
     Matrix4x4 transform;
     Material material;
 
-    Sphere(){
+    Sphere(Tuple o = point(0, 0, 0)){
+        static unsigned int cont = 0;
+        id = cont++;
+        origin = o;
         radius = 1;
         transform = Matrix4x4();
         material = Material();
@@ -54,7 +46,7 @@ struct Sphere: Object {
 };
 
 struct Intersection{
-    Object* object;
+    Sphere sphere;
     float time;
 };
 
@@ -64,6 +56,7 @@ struct Computations{
     Tuple eyev;
     Tuple normalv;
     bool inside;
+    Tuple overPoint;
 };
 
 struct Camera{
@@ -98,7 +91,7 @@ struct Camera{
 
 struct World{
     std::vector<Light> lightSources = std::vector<Light>();
-    std::vector<Object> objects  = std::vector<Object>();;
+    std::vector<Sphere> spheres  = std::vector<Sphere>();;
 
     World() = default;
 };
@@ -126,22 +119,14 @@ std::vector<Intersection> intersect(Ray ray, Sphere sphere){
 
     auto lista = std::vector<Intersection>();
 
-    lista.push_back(Intersection{&sphere, t1});
-    lista.push_back(Intersection{&sphere, t2});
+    lista.push_back(Intersection{sphere, t1});
+    lista.push_back(Intersection{sphere, t2});
 
     return lista;
 }
 
-std::vector<Intersection> intersect(Ray ray, Object object){
-    auto pSphere = dynamic_cast<Sphere*>(&object);
-    if(pSphere != nullptr){
-        return intersect(ray, *pSphere);
-    }
-    return std::vector<Intersection>();
-}
-
 Intersection hit(const std::vector<Intersection>& intersections){
-    auto hit = Intersection{nullptr, -1};
+    auto hit = Intersection{Sphere(), -1};
     for(auto intersection: intersections){
         if(intersection.time >= 0 && (intersection.time < hit.time || hit.time == -1)){
             hit = intersection;
@@ -158,23 +143,19 @@ Tuple normalAt(Sphere sphere, Tuple p){
     return normalize(worldNormal);
 }
 
-Tuple normalAt(Object object, Tuple p){
-    auto pSphere = dynamic_cast<Sphere*>(&object);
-    if(pSphere != nullptr){
-        return normalAt(*pSphere, p);
-    }
-    return vector(0, 0, 0);
-}
-
-Color lighting(Material material, Light light, Tuple point, Tuple eyev, Tuple normalv){
+Color lighting(Material material, Light light, Tuple point, Tuple eyev, Tuple normalv, bool inShadow){
     //Combine the surface color with the light's color/intensity
     auto effectiveColor = material.color * light.intensity;
 
-    //Find the direction to the light source
-    auto lightv = normalize(light.position - point);
-
     //Compute the ambient contribution
     auto ambient = effectiveColor * material.ambient;
+
+    if(inShadow){
+        return ambient;
+    }
+
+    //Find the direction to the light source
+    auto lightv = normalize(light.position - point);
 
     //lightDotNormal represents the cosine of the angle between the light vector and the normal vector.
     //A negative number means the light is on the other side of the surface.
@@ -212,19 +193,20 @@ World defaultWorld(){
     s1.material.color = Color{0.8, 1.0, 0.6};
     s1.material.diffuse = 0.7;
     s1.material.specular = 0.2;
-    world.objects.push_back(s1);
+    world.spheres.push_back(s1);
 
     auto s2 = Sphere();
     s2.transform = scaling(0.5, 0.5, 0.5);
-    world.objects.push_back(s2);
+    world.spheres.push_back(s2);
 
     return world;
 }
 
 std::vector<Intersection> intersectWorld(Ray ray, World world){
     auto lista = std::vector<Intersection>();
-    for(const Object& object: world.objects){
-        for(auto intersecao: intersect(ray, object)){
+    for(const Sphere& sphere: world.spheres){
+        auto intersecoes = intersect(ray, sphere);
+        for(auto intersecao: intersecoes){
             unsigned int pos = 0;
             for(; pos < lista.size(); pos++){
                 if(lista[pos].time > intersecao.time){
@@ -242,38 +224,52 @@ Computations prepareComputations(Ray ray, Intersection intersection){
     comps.intersection = intersection;
     comps.point = position(ray, intersection.time);
     comps.eyev = - ray.direction;
-    comps.normalv = normalAt(*intersection.object, comps.point);
+    comps.normalv = normalAt(intersection.sphere, comps.point);
     comps.inside = dot(comps.normalv, comps.eyev) < 0;
 
     if(comps.inside){
         comps.normalv = - comps.normalv;
     }
 
+    comps.overPoint = comps.point + (comps.normalv * EPSILON);
+
     return comps;
 }
 
-Color shadeHit(World world, Computations comps){
-    auto material = Material();
-    auto pSphere = dynamic_cast<Sphere*>(comps.intersection.object);
-    if(pSphere != nullptr){
-        material = pSphere->material;
+bool isShadowed(World world, Tuple point){
+    for(auto light: world.lightSources){
+        auto v = light.position - point;
+        auto distance = length(point);
+        auto direction = normalize(v);
+
+        auto r = Ray{ point, direction };
+        auto intersections = intersectWorld(r, world);
+        auto h = hit(intersections);
+        if(h.time >= 0 && h.time < distance){
+            return true;
+        }
     }
+    return false;
+}
+
+Color shadeHit(World world, Computations comps, bool shadows){
+    auto material = comps.intersection.sphere.material;
 
     auto color = Color();
     for(auto light: world.lightSources){
-        color = color + lighting(material, light, comps.point, comps.eyev, comps.normalv);
+        color = color + lighting(material, light, comps.overPoint, comps.eyev, comps.normalv, shadows && isShadowed(world, comps.overPoint));
     }
     return color;
 }
 
-Color colorAt(Ray ray, const World& world){
+Color colorAt(Ray ray, const World& world, bool shadows){
     auto intersections = intersectWorld(ray, world);
     auto h = hit(intersections);
     auto color = Color{0, 0, 0};
 
     if(h.time >= 0){
         auto comps = prepareComputations(ray, h);
-        color = shadeHit(world, comps);
+        color = shadeHit(world, comps, shadows);
     }
 
     return color;
@@ -304,13 +300,13 @@ Ray rayForPixel(Camera camera, unsigned int x, unsigned int y){
     return Ray{origin, direction};
 }
 
-Canvas render(Camera camera, const World& world){
+Canvas render(Camera camera, const World& world, bool shadows){
     auto image = canvas(camera.hSize, camera.vSize);
 
     for(unsigned int y = 0; y < camera.vSize; y++){
         for(unsigned int x = 0; x < camera.hSize; x++){
             auto ray = rayForPixel(camera, x, y);
-            auto color = colorAt(ray, world);
+            auto color = colorAt(ray, world, shadows);
             writePixel(&image, x, y, color);
         }
     }
@@ -379,13 +375,61 @@ void drawSpherePhong(unsigned int canvasPixels){
                 auto normal = normalAt(s, point);
                 auto eye = - ray.direction;
 
-                auto color = lighting(s.material, light, point, eye, normal);
+                auto color = lighting(s.material, light, point, eye, normal, false);
                 writePixel(&c, x, y, color);
             }
         }
     }
 
     canvasToPNG(&c, "phong.png");
+}
+
+void drawWorldScene(unsigned int width, unsigned int height, bool shadows){
+    auto floor = Sphere();
+    floor.transform = scaling(10, 0.01, 10);
+    floor.material.color = Color{ 1, 0.9f, 0.9f };
+    floor.material.specular = 0;
+
+    auto leftWall = Sphere();
+    leftWall.transform = translation(0, 0, 5) * rotationY(-PI/4) * rotationX(PI/2) * scaling(10, 0.01, 10);
+    leftWall.material = floor.material;
+
+    auto rightWall = Sphere();
+    rightWall.transform = translation(0, 0, 5) * rotationY(PI/4) * rotationX(PI/2) * scaling(10, 0.01, 10);
+    rightWall.material = floor.material;
+
+    auto middle = Sphere();
+    middle.transform = translation(-.5f, 1.f, .5f);
+    middle.material.color = Color{ 0.1f, 1, .5f };
+    middle.material.diffuse = 0.7f;
+    middle.material.specular = 0.3f;
+
+    auto right = Sphere();
+    right.transform = translation(1.5f, .5f, -.5f) * scaling(.5f, .5f, .5f);
+    right.material.color = Color{ 0.5f, 1, .1f };
+    right.material.diffuse = 0.7f;
+    right.material.specular = 0.3f;
+
+    auto left = Sphere();
+    left.transform = translation(-1.5f, .33f, -.75f) * scaling(.33f, .33f, .33f);
+    left.material.color = Color{ 1.f, .8f, .1f };
+    left.material.diffuse = 0.7f;
+    left.material.specular = 0.3f;
+
+    auto world = World();
+    world.lightSources.push_back(pointLight(point(-10, 10, -10), Color{ 1, 1, 1 }));
+    world.spheres.push_back(floor);
+    world.spheres.push_back(leftWall);
+    world.spheres.push_back(rightWall);
+    world.spheres.push_back(middle);
+    world.spheres.push_back(right);
+    world.spheres.push_back(left);
+
+    auto camera = Camera(width, height, PI/3);
+    camera.transform = viewTransform(point(0, 1.5f, -5), point(0, 1, 0), vector(0, 1, 0));
+
+    auto canvas = render(camera, world, shadows);
+    canvasToPNG(&canvas, "world.png");
 }
 
 #endif //RAYTRACERCHALLENGE_RENDERING_H
