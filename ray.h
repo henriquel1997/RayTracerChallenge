@@ -21,11 +21,11 @@ struct Ray {
     Tuple direction;
 };
 
-Ray ray(float originX, float originY, float originZ, float directionX, float directionY, float directionZ){
+Ray ray(double originX, double originY, double originZ, double directionX, double directionY, double directionZ){
     return Ray {point(originX, originY, originZ), vector(directionX, directionY, directionZ)};
 }
 
-Tuple position(Ray ray, float time){
+Tuple position(Ray ray, double time){
     return ray.origin + (ray.direction * time);
 }
 

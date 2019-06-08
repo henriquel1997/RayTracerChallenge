@@ -10,27 +10,27 @@
 
 struct Matrix2x2{
     public:
-        float m[2][2] = { 0 };
+        double m[2][2] = { 0 };
 
         Matrix2x2(){
             m[0][0] = 1; m[0][1] = 0;
             m[1][0] = 0; m[1][1] = 1;
         }
 
-        Matrix2x2(float m00, float m01,
-                  float m10, float m11){
+        Matrix2x2(double m00, double m01,
+                  double m10, double m11){
 
             m[0][0] = m00; m[0][1] = m01;
             m[1][0] = m10; m[1][1] = m11;
 
         }
 
-        float* operator [](unsigned int pos);
+        double* operator [](unsigned int pos);
 };
 
 struct Matrix3x3{
     public:
-        float m[3][3] = { 0 };
+        double m[3][3] = { 0 };
 
         Matrix3x3(){
             m[0][0] = 1; m[0][1] = 0; m[0][2] = 0;
@@ -38,9 +38,9 @@ struct Matrix3x3{
             m[2][0] = 0; m[2][1] = 0; m[2][2] = 1;
         }
 
-        Matrix3x3(float m00, float m01, float m02,
-                  float m10, float m11, float m12,
-                  float m20, float m21, float m22){
+        Matrix3x3(double m00, double m01, double m02,
+                  double m10, double m11, double m12,
+                  double m20, double m21, double m22){
 
             m[0][0] = m00; m[0][1] = m01; m[0][2] = m02;
             m[1][0] = m10; m[1][1] = m11; m[1][2] = m12;
@@ -48,12 +48,12 @@ struct Matrix3x3{
 
         }
 
-        float* operator [](unsigned int pos);
+        double* operator [](unsigned int pos);
 };
 
 struct Matrix4x4{
     public:
-        float m[4][4] = { 0 };
+        double m[4][4] = { 0 };
 
         Matrix4x4(){
 
@@ -64,10 +64,10 @@ struct Matrix4x4{
 
         }
 
-        Matrix4x4(float m00, float m01, float m02, float m03,
-                  float m10, float m11, float m12, float m13,
-                  float m20, float m21, float m22, float m23,
-                  float m30, float m31, float m32, float m33){
+        Matrix4x4(double m00, double m01, double m02, double m03,
+                  double m10, double m11, double m12, double m13,
+                  double m20, double m21, double m22, double m23,
+                  double m30, double m31, double m32, double m33){
 
             m[0][0] = m00; m[0][1] = m01; m[0][2] = m02; m[0][3] = m03;
             m[1][0] = m10; m[1][1] = m11; m[1][2] = m12; m[1][3] = m13;
@@ -76,18 +76,18 @@ struct Matrix4x4{
 
         }
 
-        float* operator [](unsigned int pos);
+        double* operator [](unsigned int pos);
 };
 
-float* Matrix2x2::operator [](unsigned int pos){
+double* Matrix2x2::operator [](unsigned int pos){
     return m[pos];
 }
 
-float* Matrix3x3::operator [](unsigned int pos){
+double* Matrix3x3::operator [](unsigned int pos){
     return m[pos];
 }
 
-float* Matrix4x4::operator [](unsigned int pos){
+double* Matrix4x4::operator [](unsigned int pos){
     return m[pos];
 }
 
@@ -190,7 +190,7 @@ Matrix4x4 transpose(Matrix4x4 m){
     return transpose;
 }
 
-float determinant(Matrix2x2 m){
+double determinant(Matrix2x2 m){
     return (m[0][0] * m[1][1]) - (m[0][1] * m[1][0]);
 }
 
@@ -238,11 +238,11 @@ Matrix2x2 submatrix(Matrix3x3 m, unsigned int row, unsigned int column){
     return sub;
 }
 
-float minor(Matrix3x3 m, unsigned int row, unsigned int column){
+double minor(Matrix3x3 m, unsigned int row, unsigned int column){
     return determinant(submatrix(m, row, column));
 }
 
-float cofactor(Matrix3x3 m, unsigned int row, unsigned int column){
+double cofactor(Matrix3x3 m, unsigned int row, unsigned int column){
     auto cf = minor(m, row, column);
     if((row + column) % 2 != 0){
         cf = -cf;
@@ -250,7 +250,7 @@ float cofactor(Matrix3x3 m, unsigned int row, unsigned int column){
     return cf;
 }
 
-float determinant(Matrix3x3 m){
+double determinant(Matrix3x3 m){
     auto cf1 = cofactor(m, 0, 0);
     auto cf2 = cofactor(m, 0, 1);
     auto cf3 = cofactor(m, 0, 2);
@@ -258,11 +258,11 @@ float determinant(Matrix3x3 m){
     return det;
 }
 
-float minor(Matrix4x4 m, unsigned int row, unsigned int column){
+double minor(Matrix4x4 m, unsigned int row, unsigned int column){
     return determinant(submatrix(m, row, column));
 }
 
-float cofactor(Matrix4x4 m, unsigned int row, unsigned int column){
+double cofactor(Matrix4x4 m, unsigned int row, unsigned int column){
     auto cf = minor(m, row, column);
     if((row + column) % 2 != 0){
         cf = -cf;
@@ -270,7 +270,7 @@ float cofactor(Matrix4x4 m, unsigned int row, unsigned int column){
     return cf;
 }
 
-float determinant(Matrix4x4 m){
+double determinant(Matrix4x4 m){
     return (m[0][0] * cofactor(m, 0, 0)) + (m[0][1] * cofactor(m, 0, 1)) + (m[0][2] * cofactor(m, 0, 2)) + (m[0][3] * cofactor(m, 0, 3));
 }
 

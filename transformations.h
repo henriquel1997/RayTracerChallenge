@@ -7,7 +7,7 @@
 
 #include "matrix.h"
 
-Matrix4x4 translation(float x, float y, float z){
+Matrix4x4 translation(double x, double y, double z){
     auto id = Matrix4x4();
     id[0][3] = x;
     id[1][3] = y;
@@ -15,7 +15,7 @@ Matrix4x4 translation(float x, float y, float z){
     return id;
 }
 
-Matrix4x4 scaling(float x, float y, float z){
+Matrix4x4 scaling(double x, double y, double z){
     auto id = Matrix4x4();
     id[0][0] = x;
     id[1][1] = y;
@@ -23,10 +23,10 @@ Matrix4x4 scaling(float x, float y, float z){
     return id;
 }
 
-Matrix4x4 rotationX(float angle){
+Matrix4x4 rotationX(double angle){
     auto id = Matrix4x4();
-    auto seno = sinf(angle);
-    auto cosseno = cosf(angle);
+    auto seno = sin(angle);
+    auto cosseno = cos(angle);
     id[1][1] = cosseno;
     id[1][2] = -seno;
     id[2][1] = seno;
@@ -34,10 +34,10 @@ Matrix4x4 rotationX(float angle){
     return id;
 }
 
-Matrix4x4 rotationY(float angle){
+Matrix4x4 rotationY(double angle){
     auto id = Matrix4x4();
-    auto seno = sinf(angle);
-    auto cosseno = cosf(angle);
+    auto seno = sin(angle);
+    auto cosseno = cos(angle);
     id[0][0] = cosseno;
     id[0][2] = seno;
     id[2][0] = -seno;
@@ -45,10 +45,10 @@ Matrix4x4 rotationY(float angle){
     return id;
 }
 
-Matrix4x4 rotationZ(float angle){
+Matrix4x4 rotationZ(double angle){
     auto id = Matrix4x4();
-    auto seno = sinf(angle);
-    auto cosseno = cosf(angle);
+    auto seno = sin(angle);
+    auto cosseno = cos(angle);
     id[0][0] = cosseno;
     id[0][1] = -seno;
     id[1][0] = seno;
@@ -56,7 +56,7 @@ Matrix4x4 rotationZ(float angle){
     return id;
 }
 
-Matrix4x4 shearing(float xy, float xz, float yx, float yz, float zx, float zy){
+Matrix4x4 shearing(double xy, double xz, double yx, double yz, double zx, double zy){
     auto id = Matrix4x4();
     id[0][1] = xy;
     id[0][2] = xz;

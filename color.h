@@ -8,9 +8,9 @@
 #include "tuples.h"
 
 struct Color{
-    float red;
-    float green;
-    float blue;
+    double red;
+    double green;
+    double blue;
 };
 
 Color add(Color* c1, Color* c2){
@@ -29,15 +29,15 @@ Color operator - (Color c1, Color c2){
     return subtract(&c1, &c2);
 }
 
-Color multByScalar(Color* c, float scalar){
+Color multByScalar(Color* c, double scalar){
     return Color{ c->red * scalar, c->green * scalar, c->blue * scalar };
 }
 
-Color operator * (Color c, float scalar){
+Color operator * (Color c, double scalar){
     return multByScalar(&c, scalar);
 }
 
-Color operator * (float scalar, Color c){
+Color operator * (double scalar, Color c){
     return multByScalar(&c, scalar);
 }
 

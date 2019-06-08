@@ -10,17 +10,17 @@
 #include "util.h"
 
 struct Tuple{
-    float x;
-    float y;
-    float z;
-    float w;
+    double x;
+    double y;
+    double z;
+    double w;
 };
 
-Tuple point(float x, float y, float z){
+Tuple point(double x, double y, double z){
     return Tuple{ x, y, z, 1.f};
 }
 
-Tuple vector(float x, float y, float z){
+Tuple vector(double x, double y, double z){
     return Tuple{ x, y, z, 0.f};
 }
 
@@ -76,49 +76,49 @@ Tuple operator - (Tuple t){
     return negate(t);
 }
 
-Tuple multiplication(Tuple t, float f){
+Tuple multiplication(Tuple t, double f){
     return Tuple{ t.x * f,
                   t.y * f,
                   t.z * f,
                   t.w * f };
 }
 
-Tuple operator * (Tuple t, float f){
+Tuple operator * (Tuple t, double f){
     return multiplication(t, f);
 }
 
-Tuple operator * (float f, Tuple t){
+Tuple operator * (double f, Tuple t){
     return multiplication(t, f);
 }
 
-Tuple division(Tuple t, float f){
+Tuple division(Tuple t, double f){
     return Tuple{ t.x / f,
                   t.y / f,
                   t.z / f,
                   t.w / f };
 }
 
-Tuple operator / (Tuple t, float f){
+Tuple operator / (Tuple t, double f){
     return division(t, f);
 }
 
-float length(Tuple t){
+double length(Tuple t){
     return sqrtf((t.x * t.x) + (t.y * t.y) + (t.z * t.z) + (t.w * t.w));
 }
 
-float lengthSquared(Tuple t){
+double lengthSquared(Tuple t){
     return (t.x * t.x) + (t.y * t.y) + (t.z * t.z) + (t.w * t.w);
 }
 
 Tuple normalize(Tuple t){
-    float magnitude = length(t);
+    double magnitude = length(t);
     return Tuple{ t.x / magnitude,
                   t.y / magnitude,
                   t.z / magnitude,
                   t.w / magnitude};
 }
 
-float dot(Tuple t1, Tuple t2){
+double dot(Tuple t1, Tuple t2){
     return (t1.x * t2.x) + (t1.y * t2.y) + (t1.z * t2.z) + (t1.w * t2.w);
 }
 

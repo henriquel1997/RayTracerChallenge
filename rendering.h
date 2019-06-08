@@ -14,10 +14,10 @@
 
 struct Material{
     Color color{};
-    float ambient;
-    float diffuse;
-    float specular;
-    float shininess;
+    double ambient;
+    double diffuse;
+    double specular;
+    double shininess;
 
     Material(){
         color = Color{1, 1, 1};
@@ -31,7 +31,7 @@ struct Material{
 struct Sphere {
     unsigned int id;
     Tuple origin{};
-    float radius;
+    double radius;
     Matrix4x4 transform;
     Material material;
 
@@ -47,7 +47,7 @@ struct Sphere {
 
 struct Intersection{
     Sphere sphere;
-    float time;
+    double time;
 };
 
 struct Computations{
@@ -62,19 +62,19 @@ struct Computations{
 struct Camera{
     unsigned int hSize;
     unsigned int vSize;
-    float fieldOfView;
-    float pixelSize;
-    float halfWidth;
-    float halfHeight;
+    double fieldOfView;
+    double pixelSize;
+    double halfWidth;
+    double halfHeight;
     Matrix4x4 transform;
 
-    Camera(unsigned int hSize, unsigned int vSize, float fieldOfView){
+    Camera(unsigned int hSize, unsigned int vSize, double fieldOfView){
         this->hSize = hSize;
         this->vSize = vSize;
         this->fieldOfView = fieldOfView;
         this->transform = Matrix4x4();
 
-        auto halfView = tanf(fieldOfView/2);
+        auto halfView = tan(fieldOfView/2);
         auto aspectRatio = hSize / vSize;
 
         if(aspectRatio >= 1){
@@ -257,7 +257,8 @@ Color shadeHit(World world, Computations comps, bool shadows){
 
     auto color = Color();
     for(auto light: world.lightSources){
-        color = color + lighting(material, light, comps.overPoint, comps.eyev, comps.normalv, shadows && isShadowed(world, comps.overPoint));
+        auto shadowed = shadows && isShadowed(world, comps.overPoint);
+        color = color + lighting(material, light, comps.overPoint, comps.eyev, comps.normalv, shadowed);
     }
     return color;
 }
@@ -320,10 +321,10 @@ void drawSphereRaycast(unsigned int canvasPixels){
     auto s = Sphere();
 
     auto rayOrigin = point(0, 0, -5);
-    float wallSize = 7;
-    float wallZ = 10;
-    float pixelSize = wallSize / canvasPixels;
-    float half = wallSize / 2;
+    double wallSize = 7;
+    double wallZ = 10;
+    double pixelSize = wallSize / canvasPixels;
+    double half = wallSize / 2;
 
     for(unsigned int y = 0; y < c.height; y++){
 
@@ -353,10 +354,10 @@ void drawSpherePhong(unsigned int canvasPixels){
     auto light = pointLight(point(-10, 10, -10), Color{1, 1, 1});
 
     auto rayOrigin = point(0, 0, -5);
-    float wallSize = 7;
-    float wallZ = 10;
-    float pixelSize = wallSize / canvasPixels;
-    float half = wallSize / 2;
+    double wallSize = 7;
+    double wallZ = 10;
+    double pixelSize = wallSize / canvasPixels;
+    double half = wallSize / 2;
 
     for(unsigned int y = 0; y < c.height; y++){
 
