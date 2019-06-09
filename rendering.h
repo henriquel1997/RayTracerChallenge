@@ -38,6 +38,10 @@ struct Computations{
     Tuple normalv;
     bool inside;
     Tuple overPoint;
+    Tuple underPoint;
+    Tuple reflectv;
+    double n1; //For Refraction, refractive index of the material the ray is passing from
+    double n2; //For Refraction, refractive index of the material the ray is passing to
 };
 
 struct Camera{
@@ -76,6 +80,10 @@ struct World{
 
     World() = default;
 };
+
+#define MAX_DEPTH 5
+Color colorAt(Ray ray, const World& world, bool shadows, unsigned int remaining = MAX_DEPTH);
+Color reflectedColor(const World &world, Computations comps, bool shadows, unsigned int remaining);
 
 void addPattern(Material* material, Pattern* pattern){
     material->hasPattern = true;
@@ -135,9 +143,14 @@ std::vector<Intersection> intersect(Ray ray, Object* object){
     return std::vector<Intersection>();
 }
 
-Intersection hit(const std::vector<Intersection>& intersections){
+Intersection hit(const std::vector<Intersection>& intersections, bool ignoreNoShadows = false){
     auto hit = Intersection{nullptr, -1};
     for(const auto &intersection: intersections){
+        //When ignoreNoShadows is true, the function will ignore objects that doesn't cast shadows
+        if(ignoreNoShadows && !intersection.object->material.castShadows){
+            continue;
+        }
+
         if(intersection.time >= 0 && (intersection.time < hit.time || hit.time == -1)){
             hit = intersection;
         }
@@ -259,19 +272,69 @@ std::vector<Intersection> intersectWorld(Ray ray, World world){
     return lista;
 }
 
-Computations prepareComputations(Ray ray, Intersection intersection){
+bool operator == (Intersection i1, Intersection i2){
+    return i1.time == i2.time && ((i1.object == nullptr && i2.object == nullptr) || (i1.object->id == i2.object->id));
+}
+
+bool operator == (Object o1, Object o2){
+    return o1.id == o2.id;
+}
+
+int contains(std::vector<Object> objects, Object* o){
+    int cont = 0;
+    for(const auto &item: objects){
+        if(item == *o){
+            return cont;
+        }
+        cont++;
+    }
+    return -1;
+}
+
+Computations prepareComputations(Ray ray, Intersection hit, std::vector<Intersection> intersections){
     auto comps = Computations{};
-    comps.intersection = intersection;
-    comps.point = position(ray, intersection.time);
+    comps.intersection = hit;
+    comps.point = position(ray, hit.time);
     comps.eyev = - ray.direction;
-    comps.normalv = normalAt(intersection.object, comps.point);
+    comps.normalv = normalAt(hit.object, comps.point);
     comps.inside = dot(comps.normalv, comps.eyev) < 0;
 
     if(comps.inside){
         comps.normalv = - comps.normalv;
     }
 
-    comps.overPoint = comps.point + (comps.normalv * EPSILON);
+    auto smallNormal = (comps.normalv * EPSILON);
+    comps.overPoint = comps.point + smallNormal;
+    comps.underPoint = comps.point - smallNormal;
+
+    //Refraction
+    comps.reflectv = reflect(ray.direction, comps.normalv);
+
+    auto containers = std::vector<Object>();
+    for(auto intersection: intersections){
+        if(intersection == hit){
+            if(containers.empty()){
+                comps.n1 = 1;
+            }else{
+                comps.n1 = containers[containers.size()-1].material.refractiveIndex;
+            }
+        }
+
+        auto pos = contains(containers, intersection.object);
+        if(pos >= 0){
+            containers.erase(containers.begin() + pos);
+        }else{
+            containers.push_back(*intersection.object);
+        }
+
+        if(intersection == hit){
+            if(containers.empty()){
+                comps.n2 = 0;
+            }else{
+                comps.n2 = containers[containers.size()-1].material.refractiveIndex;
+            }
+        }
+    }
 
     return comps;
 }
@@ -284,7 +347,8 @@ bool isShadowed(World world, Tuple point){
 
         auto r = Ray{ point, direction };
         auto intersections = intersectWorld(r, world);
-        auto h = hit(intersections);
+        //Only want to check hits with objects that cast shadows
+        auto h = hit(intersections, true);
         if(h.time >= 0 && h.time < distance){
             return true;
         }
@@ -292,28 +356,94 @@ bool isShadowed(World world, Tuple point){
     return false;
 }
 
-Color shadeHit(World world, Computations comps, bool shadows){
-    auto material = comps.intersection.object->material;
+Color refractedColor(const World &world, Computations comps, bool shadows, unsigned int remaining){
+    auto transparency = comps.intersection.object->material.transparency;
 
-    auto color = BLACK;
-    for(auto light: world.lightSources){
-        auto shadowed = shadows && isShadowed(world, comps.overPoint);
-        color = color + lighting(material, comps.intersection.object, light, comps.overPoint, comps.eyev, comps.normalv, shadowed);
+    if(transparency == 0 || remaining <= 0){
+        return BLACK;
     }
-    return color;
+
+    auto nRatio = comps.n1 / comps.n2;
+    auto cosI = dot(comps.eyev, comps.normalv);
+    auto sin2T = nRatio*nRatio * (1 - (cosI*cosI));
+
+    if(sin2T > 1){
+        return BLACK;
+    }
+
+    auto cosT = sqrt(1 - sin2T);
+    auto direction = (comps.normalv * ((nRatio * cosI) - cosT)) - (comps.eyev * nRatio);
+
+    auto refractRay = Ray{ comps.underPoint, direction };
+
+    return colorAt(refractRay, world, shadows, remaining -1) * transparency;
 }
 
-Color colorAt(Ray ray, const World& world, bool shadows){
+double schlick(Computations comps){
+    auto cos = dot(comps.eyev, comps.normalv);
+
+    if(comps.n1 > comps.n2){
+        auto n = comps.n1 / comps.n2;
+        auto sin2T = n*n * (1 - (cos*cos));
+
+        if(sin2T > 1){
+            return 1;
+        }
+
+        cos = sqrt(1 - sin2T);
+    }
+
+    auto sqrt_r0 = (comps.n1 - comps.n2) / (comps.n1 + comps.n2);
+    auto r0 = sqrt_r0 * sqrt_r0;
+    auto compCos = 1 - cos;
+    auto compCos5 = compCos*compCos*compCos*compCos*compCos;
+    return r0 + (1 - r0) * compCos5;
+}
+
+Color shadeHit(World world, Computations comps, bool shadows, unsigned int remaining){
+    auto material = comps.intersection.object->material;
+
+    auto surface = BLACK;
+    for(auto light: world.lightSources){
+        auto shadowed = shadows && isShadowed(world, comps.overPoint);
+        surface = surface + lighting(material, comps.intersection.object, light, comps.overPoint, comps.eyev, comps.normalv, shadowed);
+    }
+
+    auto reflected = reflectedColor(world, comps, shadows, remaining);
+    auto refracted = refractedColor(world, comps, shadows, remaining);
+
+    if(material.reflective > 0 && material.transparency > 0){
+        auto reflectance = schlick(comps);
+        return surface + (reflected * reflectance) + (refracted * (1 - reflectance));
+    }
+
+    return surface + reflected + refracted;
+}
+
+
+Color colorAt(Ray ray, const World& world, bool shadows, unsigned int remaining){
     auto intersections = intersectWorld(ray, world);
     auto h = hit(intersections);
     auto color = BLACK;
 
     if(h.time >= 0){
-        auto comps = prepareComputations(ray, h);
-        color = shadeHit(world, comps, shadows);
+        auto comps = prepareComputations(ray, h, intersections);
+        color = shadeHit(world, comps, shadows, remaining);
     }
 
     return color;
+}
+
+Color reflectedColor(const World &world, Computations comps, bool shadows, unsigned int remaining){
+    auto reflective = comps.intersection.object->material.reflective;
+    if(remaining <= 0 || reflective <= 0){
+        return BLACK;
+    }
+
+    auto reflectRay = Ray{ comps.overPoint, comps.reflectv };
+    auto color = colorAt(reflectRay, world, shadows, remaining - 1);
+
+    return color * reflective;
 }
 
 Matrix4x4 viewTransform(Tuple from, Tuple to, Tuple up){

@@ -165,7 +165,6 @@ void drawPlaneScene(unsigned int width, unsigned int height, bool shadows){
 }
 
 void drawPatternScene(unsigned int width, unsigned int height, bool shadows){
-
     auto c1 = GREEN;
     auto c2 = BLUE;
     auto c3 = RED;
@@ -216,6 +215,120 @@ void drawPatternScene(unsigned int width, unsigned int height, bool shadows){
 
     auto canvas = render(camera, world, shadows);
     canvasToPNG(&canvas, "pattern.png");
+}
+
+void drawReflectionScene(unsigned int width, unsigned int height, bool shadows){
+    auto c1 = GREEN;
+    auto c2 = BLUE;
+    auto c3 = RED;
+    auto c4 = WHITE;
+    auto c5 = BLACK;
+
+    auto stripes = Stripes(c1, c2);
+    auto ring = Ring(c3, c4);
+    auto gradient = Gradient(c3, c2);
+    auto checker = Checker3D(c5, c4);
+    checker.transform = scaling(0.5, 0.5, 0.5);
+
+    auto plane = Plane();
+    plane.material.color = Color{ 0.82f, 0.82f, 0.82f };
+    plane.material.diffuse = 0.7f;
+    plane.material.specular = 0.3f;
+    plane.material.reflective = 1.f;
+    addPattern(&plane.material, &ring);
+
+    auto middle = Sphere();
+    middle.transform = translation(-.5f, 1.f, .5f);
+    middle.material.color = Color{ 0.1f, 1, .5f };
+    middle.material.diffuse = 0.7f;
+    middle.material.specular = 0.3f;
+    middle.material.reflective = 1.f;
+    addPattern(&middle.material, &checker);
+
+    auto right = Sphere();
+    right.transform = translation(1.5f, .5f, -.5f) * scaling(.5f, .5f, .5f);
+    right.material.color = Color{ 0.5f, 1, .1f };
+    right.material.diffuse = 0.7f;
+    right.material.specular = 0.3f;
+    right.material.reflective = 1.f;
+    addPattern(&right.material, &stripes);
+
+    auto left = Sphere();
+    left.transform = translation(-1.5f, .33f, -.75f) * scaling(.33f, .33f, .33f);
+    left.material.color = Color{ 1.f, .8f, .1f };
+    left.material.diffuse = 0.7f;
+    left.material.specular = 0.3f;
+    left.material.reflective = 1.f;
+    addPattern(&left.material, &gradient);
+
+    auto world = World();
+    world.lightSources.push_back(pointLight(point(-10, 10, -10), Color{ 1, 1, 1 }));
+    world.objects.push_back(&plane);
+    world.objects.push_back(&middle);
+    world.objects.push_back(&right);
+    world.objects.push_back(&left);
+
+    auto camera = Camera(width, height, PI/3);
+    camera.transform = viewTransform(point(0, 1.5f, -5), point(0, 1, 0), vector(0, 1, 0));
+
+    auto canvas = render(camera, world, shadows);
+    canvasToPNG(&canvas, "reflection.png");
+}
+
+Sphere glassSphere(){
+    auto sphere = Sphere();
+    sphere.material.transparency = 1.0;
+    sphere.material.reflective = 1.0;
+    sphere.material.refractiveIndex = 1.52;
+    sphere.material.color = BLACK;
+    return sphere;
+}
+
+Sphere airSphere(){
+    auto sphere = Sphere();
+    sphere.material.transparency = 1.0;
+    sphere.material.reflective = 1.0;
+    sphere.material.refractiveIndex = 1.00029;
+    sphere.material.color = BLACK;
+    return sphere;
+}
+
+void drawGlass(unsigned int width, unsigned int height, bool shadows){
+    auto c1 = GREEN;
+    auto c2 = BLUE;
+    auto c3 = RED;
+    auto c4 = WHITE;
+    auto c5 = BLACK;
+
+    auto stripes = Stripes(c1, c2);
+    auto ring = Ring(c3, c4);
+    auto gradient = Gradient(c3, c2);
+    auto checker = Checker3D(c5, c4);
+    checker.transform = scaling(0.1, 0.1, 0.1);
+
+    auto plane = Plane();
+    plane.material.color = WHITE;
+    plane.material.diffuse = 0.7f;
+    plane.material.specular = 0.3f;
+    plane.transform = rotationX(PI/2);
+    addPattern(&plane.material, &checker);
+
+    auto glass = glassSphere();
+
+    auto air = airSphere();
+    air.transform = scaling(0.5, 0.5, 0.5);
+
+    auto world = World();
+    world.lightSources.push_back(pointLight(point(-10, 10, -10), Color{ 1, 1, 1 }));
+    world.objects.push_back(&plane);
+    world.objects.push_back(&glass);
+    world.objects.push_back(&air);
+
+    auto camera = Camera(width, height, PI/6);
+    camera.transform = viewTransform(point(0, 2, -3), point(0, 0, 0), vector(0, 1, 0));
+
+    auto canvas = render(camera, world, shadows);
+    canvasToPNG(&canvas, "glass.png");
 }
 
 #endif //RAYTRACERCHALLENGE_RENDER_FUNCTIONS_H

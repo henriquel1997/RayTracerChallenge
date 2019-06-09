@@ -32,6 +32,10 @@ struct Material{
     double shininess;
     bool hasPattern;
     Pattern* pattern;
+    double reflective;
+    double transparency;
+    double refractiveIndex;
+    bool castShadows;
 
     Material(){
         color = WHITE;
@@ -41,6 +45,10 @@ struct Material{
         shininess = 200;
         hasPattern = false;
         pattern = nullptr;
+        reflective = 0;
+        transparency = 0;
+        refractiveIndex = 1;
+        castShadows = true;
     }
 };
 
