@@ -33,4 +33,26 @@ double clamp(double val, double min, double max){
     return val;
 }
 
+double max(double v1, double v2){
+    if(v1 > v2){
+        return v1;
+    }
+    return v2;
+}
+
+double min(double v1, double v2){
+    if(v1 < v2){
+        return v1;
+    }
+    return v2;
+}
+
+double max(double v1, double v2, double v3){
+    return max(max(v1, v2), v3);
+}
+
+double min(double v1, double v2, double v3){
+    return min(min(v1, v2), v3);
+}
+
 #endif //RAYTRACERCHALLENGE_UTIL_H

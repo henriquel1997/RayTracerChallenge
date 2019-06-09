@@ -14,73 +14,6 @@
 #include "pattern.h"
 #include "structs.h"
 
-struct Sphere : Object {
-    Tuple origin{};
-    double radius;
-
-    Sphere(): Object(){
-        origin = point(0, 0, 0);
-        radius = 1;
-    }
-};
-
-struct Plane : Object {};
-
-struct Intersection{
-    Object* object;
-    double time;
-};
-
-struct Computations{
-    Intersection intersection;
-    Tuple point;
-    Tuple eyev;
-    Tuple normalv;
-    bool inside;
-    Tuple overPoint;
-    Tuple underPoint;
-    Tuple reflectv;
-    double n1; //For Refraction, refractive index of the material the ray is passing from
-    double n2; //For Refraction, refractive index of the material the ray is passing to
-};
-
-struct Camera{
-    unsigned int hSize;
-    unsigned int vSize;
-    double fieldOfView;
-    double pixelSize;
-    double halfWidth;
-    double halfHeight;
-    Matrix4x4 transform;
-
-    Camera(unsigned int hSize, unsigned int vSize, double fieldOfView){
-        this->hSize = hSize;
-        this->vSize = vSize;
-        this->fieldOfView = fieldOfView;
-        this->transform = Matrix4x4();
-
-        auto halfView = tan(fieldOfView/2);
-        auto aspectRatio = hSize / vSize;
-
-        if(aspectRatio >= 1){
-            this->halfWidth = halfView;
-            this->halfHeight = halfView/aspectRatio;
-        }else{
-            this->halfWidth = halfView/aspectRatio;
-            this->halfHeight = halfView;
-        }
-
-        this->pixelSize = (this->halfWidth * 2) / hSize;
-    }
-};
-
-struct World{
-    std::vector<Light> lightSources = std::vector<Light>();
-    std::vector<Object*> objects  = std::vector<Object*>();;
-
-    World() = default;
-};
-
 #define MAX_DEPTH 5
 Color colorAt(Ray ray, const World& world, bool shadows, unsigned int remaining = MAX_DEPTH);
 Color reflectedColor(const World &world, Computations comps, bool shadows, unsigned int remaining);
@@ -88,59 +21,6 @@ Color reflectedColor(const World &world, Computations comps, bool shadows, unsig
 void addPattern(Material* material, Pattern* pattern){
     material->hasPattern = true;
     material->pattern = pattern;
-}
-
-//Expects a local ray (needs to go through transform(ray, inverse(sphere.transform)))
-std::vector<Intersection> localIntersect(Ray ray, Sphere* sphere){
-    auto sphere_to_ray = ray.origin - sphere->origin;
-
-    auto a = dot(ray.direction, ray.direction);
-    auto b = 2 * dot(ray.direction, sphere_to_ray);
-    auto c = dot(sphere_to_ray, sphere_to_ray) - 1;
-
-    auto discriminant = (b * b) - 4 * a * c;
-
-    if(discriminant < 0){
-        return std::vector<Intersection>();
-    }
-
-    auto raiz = sqrt(discriminant);
-    auto divisor = (2 * a);
-
-    auto t1 = (-b - raiz) / divisor;
-    auto t2 = (-b + raiz) / divisor;
-
-    auto lista = std::vector<Intersection>();
-
-    lista.push_back(Intersection{sphere, t1});
-    lista.push_back(Intersection{sphere, t2});
-
-    return lista;
-}
-
-std::vector<Intersection> localIntersect(Ray ray, Plane* plane){
-    auto lista = std::vector<Intersection>();
-    if(absolute(ray.direction.y) >= EPSILON){
-        auto time = (-ray.origin.y) / ray.direction.y;
-        lista.push_back(Intersection{plane, time});
-    }
-    return lista;
-}
-
-std::vector<Intersection> intersect(Ray ray, Object* object){
-    auto localRay = transform(ray, inverse(object->transform));
-
-    auto pSphere = dynamic_cast<Sphere*>(object);
-    if(pSphere != nullptr){
-        return localIntersect(localRay, pSphere);
-    }
-
-    auto pPlane = dynamic_cast<Plane*>(object);
-    if(pPlane != nullptr){
-        return localIntersect(localRay, pPlane);
-    }
-
-    return std::vector<Intersection>();
 }
 
 Intersection hit(const std::vector<Intersection>& intersections, bool ignoreNoShadows = false){
@@ -156,35 +36,6 @@ Intersection hit(const std::vector<Intersection>& intersections, bool ignoreNoSh
         }
     }
     return hit;
-}
-
-//Expects a local point (needs to go through inverse(sphere->transform) * point)
-Tuple localNormalAt(Sphere* sphere, Tuple p){
-    return p - sphere->origin;
-}
-
-Tuple localNormalAt(Plane* plane){
-    return vector(0, 1, 0);
-}
-
-Tuple normalAt(Object* object, Tuple p){
-    auto localPoint = inverse(object->transform) * p;
-    auto localNormal = vector(0, 0, 0);
-
-    auto pSphere = dynamic_cast<Sphere*>(object);
-    if(pSphere != nullptr){
-        localNormal = localNormalAt(pSphere, localPoint);
-    }else{
-        auto pPlane = dynamic_cast<Plane*>(object);
-        if(pPlane != nullptr){
-            localNormal = localNormalAt(pPlane);
-        }
-    }
-
-    auto worldNormal = transpose(inverse(object->transform)) * localNormal;
-    worldNormal.w = 0;
-
-    return normalize(worldNormal);
 }
 
 Color lighting(Material material, Object* object, Light light, Tuple point, Tuple eyev, Tuple normalv, bool inShadow){
