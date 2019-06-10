@@ -371,4 +371,44 @@ void drawGlassAndCube(unsigned int width, unsigned int height, bool shadows){
     canvasToPNG(&canvas, "glass and cube.png");
 }
 
+void drawCylinder(unsigned int width, unsigned int height, bool shadows){
+    auto c1 = GREEN;
+    auto c2 = BLUE;
+    auto c3 = RED;
+    auto c4 = WHITE;
+    auto c5 = BLACK;
+
+    auto stripes = Stripes(c1, c2);
+    auto ring = Ring(c3, c4);
+    auto gradient = Gradient(c3, c2);
+    auto checker = Checker3D(c5, c4);
+    checker.transform = scaling(0.1, 0.1, 0.1);
+
+    auto box = Cube();
+    box.material.diffuse = 0.7f;
+    box.material.specular = 0.3f;
+    box.transform = scaling(10, 10, 10);
+    addPattern(&box.material, &checker);
+
+    auto cube = Cylinder();
+    cube.minimumY = -1;
+    cube. maximumY = 1;
+    cube.closed = true;
+    cube.material.color = RED;
+    cube.material.diffuse = 0.7f;
+    cube.material.specular = 0.3f;
+    cube.transform = scaling(0.5, 0.5, 0.5) * rotationX(-PI/4) * rotationZ(-PI/4);
+
+    auto world = World();
+    world.lightSources.push_back(pointLight(point(-10, 10, -10), Color{ 1, 1, 1 }));
+    world.objects.push_back(&box);
+    world.objects.push_back(&cube);
+
+    auto camera = Camera(width, height, PI/6);
+    camera.transform = viewTransform(point(0, 1, -3), point(0, 0, 0), vector(0, 1, 0));
+
+    auto canvas = render(camera, world, shadows);
+    canvasToPNG(&canvas, "cylinder.png");
+}
+
 #endif //RAYTRACERCHALLENGE_RENDER_FUNCTIONS_H
