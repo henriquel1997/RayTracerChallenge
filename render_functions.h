@@ -390,19 +390,29 @@ void drawCylinder(unsigned int width, unsigned int height, bool shadows){
     box.transform = scaling(10, 10, 10);
     addPattern(&box.material, &checker);
 
-    auto cube = Cylinder();
-    cube.minimumY = -1;
-    cube. maximumY = 1;
-    cube.closed = true;
-    cube.material.color = RED;
-    cube.material.diffuse = 0.7f;
-    cube.material.specular = 0.3f;
-    cube.transform = scaling(0.5, 0.5, 0.5) * rotationX(-PI/4) * rotationZ(-PI/4);
+    auto cylinder = Cylinder();
+    cylinder.minimumY = -1;
+    cylinder. maximumY = 1;
+    cylinder.closed = true;
+    cylinder.material.color = RED;
+    cylinder.material.diffuse = 0.7f;
+    cylinder.material.specular = 0.3f;
+    cylinder.transform = translation(-0.45, 0, 0) * scaling(0.2, 0.2, 0.2) * rotationX(-PI/4) * rotationZ(-PI/4);
+
+    auto cone = Cone();
+    cone.minimumY = -1;
+    cone. maximumY = 0;
+    cone.closed = true;
+    cone.material.color = RED;
+    cone.material.diffuse = 0.7f;
+    cone.material.specular = 0.3f;
+    cone.transform = translation(0.45, 0, 0)  * rotationX(-PI/4) * rotationZ(-PI/4) * scaling(0.2, 0.4, 0.2) * translation(0, 1, 0);
 
     auto world = World();
     world.lightSources.push_back(pointLight(point(-10, 10, -10), Color{ 1, 1, 1 }));
     world.objects.push_back(&box);
-    world.objects.push_back(&cube);
+    world.objects.push_back(&cylinder);
+    world.objects.push_back(&cone);
 
     auto camera = Camera(width, height, PI/6);
     camera.transform = viewTransform(point(0, 1, -3), point(0, 0, 0), vector(0, 1, 0));

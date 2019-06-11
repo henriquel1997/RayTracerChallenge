@@ -79,6 +79,7 @@ struct Sphere : Object {
 
 struct Plane : Object {};
 struct Cube : Object {};
+
 struct Cylinder : Object {
     double minimumY;
     double maximumY;
@@ -90,6 +91,8 @@ struct Cylinder : Object {
         closed = false;
     }
 };
+
+struct Cone : Cylinder {};
 
 struct Intersection{
     Object* object;
@@ -290,6 +293,70 @@ std::vector<Intersection> localIntersect(Ray ray, Cylinder* cylinder){
     return lista;
 }
 
+bool checkCap(Ray ray, double t, double y){
+    auto x = ray.origin.x + (t * ray.direction.x);
+    auto z = ray.origin.z + (t * ray.direction.z);
+    return ((x*x) + (z*z)) <= y;
+}
+
+std::vector<Intersection> intersectCaps(Ray ray, Cone* cylinder){
+    auto lista = std::vector<Intersection>();
+    if(!cylinder->closed){
+        return lista;
+    }
+
+    auto t = (cylinder->minimumY - ray.origin.y) / ray.direction.y;
+    if(checkCap(ray, t, cylinder->minimumY)){
+        lista.push_back(Intersection{cylinder, t});
+    }
+
+    t = (cylinder->maximumY - ray.origin.y) / ray.direction.y;
+    if(checkCap(ray, t, cylinder->maximumY)){
+        lista.push_back(Intersection{cylinder, t});
+    }
+
+    return lista;
+}
+
+std::vector<Intersection> localIntersect(Ray ray, Cone* cone){
+    auto lista = std::vector<Intersection>();
+
+    auto a = (ray.direction.x * ray.direction.x) - (ray.direction.y * ray.direction.y) + (ray.direction.z * ray.direction.z);
+    auto b = (2 * ray.origin.x * ray.direction.x) - (2 * ray.origin.y * ray.direction.y) + (2 * ray.origin.z * ray.direction.z);
+    auto c = (ray.origin.x * ray.origin.x) - (ray.origin.y * ray.origin.y) + (ray.origin.z * ray.origin.z);
+
+    if(!equal(a, 0)){
+        auto disc = (b*b) - (4 * a * c);
+
+        if(disc < 0){
+            return lista;
+        }
+
+        auto sqrtDisc = sqrt(disc);
+        auto t0 = (-b - sqrtDisc) / (2 * a);
+        auto t1 = (-b + sqrtDisc) / (2 * a);
+
+        auto y0 = ray.origin.y + (t0 * ray.direction.y);
+        if(cone->minimumY < y0 && y0 < cone->maximumY){
+            lista.push_back(Intersection{ cone, t0 });
+        }
+
+        auto y1 = ray.origin.y + (t1 * ray.direction.y);
+        if(cone->minimumY < y1 && y1 < cone->maximumY){
+            lista.push_back(Intersection{ cone, t1 });
+        }
+    }else if(!equal(b, 0)){
+        auto t = -c/(2*b);
+        lista.push_back(Intersection{ cone, t });
+    }
+
+    for(auto inter: intersectCaps(ray, cone)){
+        lista.push_back(inter);
+    }
+
+    return lista;
+}
+
 std::vector<Intersection> intersect(Ray ray, Object* object){
     auto localRay = transform(ray, inverse(object->transform));
 
@@ -306,6 +373,11 @@ std::vector<Intersection> intersect(Ray ray, Object* object){
     auto pCube = dynamic_cast<Cube*>(object);
     if(pCube != nullptr){
         return localIntersect(localRay, pCube);
+    }
+
+    auto pCone = dynamic_cast<Cone*>(object);
+    if(pCone != nullptr){
+        return localIntersect(localRay, pCone);
     }
 
     auto pCylinder = dynamic_cast<Cylinder*>(object);
@@ -354,6 +426,25 @@ Tuple localNormalAt(Cylinder* cylinder, Tuple p){
     return vector(p.x, 0, p.z);
 }
 
+Tuple localNormalAt(Cone* cone, Tuple p){
+    auto dist = (p.x*p.x) + (p.z*p.z);
+
+    if(dist < 1){
+        if(p.y >= cone->maximumY - EPSILON){
+            return vector(0, 1, 0);
+        }else if(p.y <= cone->minimumY + EPSILON){
+            return vector(0, -1, 0);
+        }
+    }
+
+    auto y = sqrt(dist);
+    if(p.y > 0){
+        y = -y;
+    }
+
+    return vector(p.x, y, p.z);
+}
+
 Tuple localNormalAt(Object* object, Tuple p){
     auto pSphere = dynamic_cast<Sphere*>(object);
     if(pSphere != nullptr){
@@ -368,6 +459,11 @@ Tuple localNormalAt(Object* object, Tuple p){
     auto pCube = dynamic_cast<Cube*>(object);
     if(pCube != nullptr){
         return localNormalAt(pCube, p);
+    }
+
+    auto pCone = dynamic_cast<Cone*>(object);
+    if(pCone != nullptr){
+        return localNormalAt(pCone, p);
     }
 
     auto pCylinder = dynamic_cast<Cylinder*>(object);
