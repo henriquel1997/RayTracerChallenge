@@ -139,8 +139,9 @@ Color patternAt(Pattern* pattern, Tuple point){
     return BLACK;
 }
 
+//TODO: Testar se as Patterns estão funcionando com Groups
 Color patternAtObject(Pattern* pattern, Object *object, Tuple worldPoint){
-    auto objectPoint = inverse(object->transform) * worldPoint;
+    auto objectPoint = worldToObject(object, worldPoint);
     auto patternPoint = inverse(pattern->transform) * objectPoint;
     return patternAt(pattern, patternPoint);
 }

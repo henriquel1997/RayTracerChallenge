@@ -56,6 +56,7 @@ struct Object {
     unsigned int id;
     Matrix4x4 transform;
     Material material;
+    Object* parent = nullptr;
 
     Object(){
         static unsigned int cont = 0;
@@ -93,6 +94,95 @@ struct Cylinder : Object {
 };
 
 struct Cone : Cylinder {};
+
+struct Group : Object{
+    std::vector<Sphere> spheres = std::vector<Sphere>();
+    std::vector<Plane> planes = std::vector<Plane>();
+    std::vector<Cube> cubes = std::vector<Cube>();
+    std::vector<Cylinder> cylinders = std::vector<Cylinder>();
+    std::vector<Cone> cones = std::vector<Cone>();
+    std::vector<Group> groups = std::vector<Group>();
+
+    unsigned long long int size(){
+        return spheres.size() + planes.size() + cubes.size() + cylinders.size() + cones.size() + groups.size();
+    }
+
+    Object* get(unsigned int position){
+        if(position < spheres.size()){
+            return &spheres[position];
+        }
+        position -= spheres.size();
+
+        if(position < planes.size()){
+            return &planes[position];
+        }
+        position -= planes.size();
+
+        if(position < cubes.size()){
+            return &cubes[position];
+        }
+        position -= cubes.size();
+
+        if(position < cylinders.size()){
+            return &cylinders[position];
+        }
+        position -= cylinders.size();
+
+        if(position < cones.size()){
+            return &cones[position];
+        }
+        position -= cones.size();
+
+        if(position < groups.size()){
+            return &groups[position];
+        }
+
+        return nullptr;
+    }
+
+    bool insert(Object* object){
+
+        object->parent = this;
+
+        auto pSphere = dynamic_cast<Sphere*>(object);
+        if(pSphere != nullptr){
+            spheres.push_back(*pSphere);
+            return true;
+        }
+
+        auto pPlane = dynamic_cast<Plane*>(object);
+        if(pPlane != nullptr){
+            planes.push_back(*pPlane);
+            return true;
+        }
+
+        auto pCube = dynamic_cast<Cube*>(object);
+        if(pCube != nullptr){
+            cubes.push_back(*pCube);
+            return true;
+        }
+
+        auto pCone = dynamic_cast<Cone*>(object);
+        if(pCone != nullptr){
+            cones.push_back(*pCone);
+            return true;
+        }
+
+        auto pCylinder = dynamic_cast<Cylinder*>(object);
+        if(pCylinder != nullptr){
+            cylinders.push_back(*pCylinder);
+            return true;
+        }
+
+        auto pGroup = dynamic_cast<Group*>(object);
+        if(pGroup != nullptr){
+            groups.push_back(*pGroup);
+            return true;
+        }
+
+        return false;
+    }
+};
 
 struct Intersection{
     Object* object;
@@ -144,7 +234,7 @@ struct Camera{
 
 struct World{
     std::vector<Light> lightSources = std::vector<Light>();
-    std::vector<Object*> objects  = std::vector<Object*>();;
+    std::vector<Object*> objects  = std::vector<Object*>();
 
     World() = default;
 };
@@ -357,6 +447,24 @@ std::vector<Intersection> localIntersect(Ray ray, Cone* cone){
     return lista;
 }
 
+std::vector<Intersection> intersect(Ray ray, Object* object);
+
+std::vector<Intersection> localIntersect(Ray ray, Group* group){
+    auto lista = std::vector<Intersection>();
+    for (unsigned int i = 0; i < group->size(); i++) {
+        for(auto intersection: intersect(ray, group->get(i))){
+            unsigned int pos = 0;
+            for(; pos < lista.size(); pos++){
+                if(lista[pos].time > intersection.time){
+                    break;
+                }
+            }
+            lista.insert(lista.begin() + pos, intersection);
+        }
+    }
+    return lista;
+}
+
 std::vector<Intersection> intersect(Ray ray, Object* object){
     auto localRay = transform(ray, inverse(object->transform));
 
@@ -383,6 +491,11 @@ std::vector<Intersection> intersect(Ray ray, Object* object){
     auto pCylinder = dynamic_cast<Cylinder*>(object);
     if(pCylinder != nullptr){
         return localIntersect(localRay, pCylinder);
+    }
+
+    auto pGroup = dynamic_cast<Group*>(object);
+    if(pGroup != nullptr){
+        return localIntersect(localRay, pGroup);
     }
 
     return std::vector<Intersection>();
@@ -474,12 +587,29 @@ Tuple localNormalAt(Object* object, Tuple p){
     return vector(0, 0, 0);
 }
 
-Tuple normalAt(Object* object, Tuple p){
-    auto localPoint = inverse(object->transform) * p;
-    auto worldNormal = transpose(inverse(object->transform)) * localNormalAt(object, localPoint);
-    worldNormal.w = 0;
-    return normalize(worldNormal);
+Tuple worldToObject(Object* object, Tuple point){
+    if(object->parent != nullptr){
+        point = worldToObject(object->parent, point);
+    }
+    return inverse(object->transform) * point;
 }
 
+Tuple normalToWorld(Object* object, Tuple normal){
+    normal = transpose(inverse(object->transform)) * normal;
+    normal.w = 0;
+    normal = normalize(normal);
+
+    if(object->parent != nullptr){
+        normal = normalToWorld(object->parent, normal);
+    }
+
+    return normal;
+}
+
+Tuple normalAt(Object* object, Tuple p){
+    auto localPoint = worldToObject(object, p);
+    auto localNormal = localNormalAt(object, localPoint);
+    return normalToWorld(object, localNormal);
+}
 
 #endif //RAYTRACERCHALLENGE_STRUCTS_H

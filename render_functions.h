@@ -421,4 +421,70 @@ void drawCylinder(unsigned int width, unsigned int height, bool shadows){
     canvasToPNG(&canvas, "cylinder.png");
 }
 
+Sphere hexagonCorner(){
+    auto corner = Sphere();
+    corner.transform = translation(0, 0, -1) * scaling(0.25, 0.25, 0.25);
+    return corner;
+}
+
+Cylinder hexagonEdge(){
+    auto edge = Cylinder();
+    edge.minimumY = 0;
+    edge.maximumY = 1;
+    edge.transform = translation(0, 0, -1) * rotationY(-PI/6) * rotationZ(-PI/2) * scaling(0.25, 1, 0.25);
+    return edge;
+}
+
+void hexagonSide(Group* side){
+    auto corner = hexagonCorner();
+    auto edge = hexagonEdge();
+
+    side->insert(&corner);
+    side->insert(&edge);
+}
+
+void hexagon(Group* hex, Group* sides){
+    for(int i = 0; i < 6; i++){
+        hexagonSide(&sides[i]);
+        sides[i].transform = rotationY((i*PI)/3);
+        hex->insert(&sides[i]);
+    }
+}
+
+void drawHexagon(unsigned int width, unsigned int height, bool shadows){
+    auto c1 = GREEN;
+    auto c2 = BLUE;
+    auto c3 = RED;
+    auto c4 = WHITE;
+    auto c5 = BLACK;
+
+    auto stripes = Stripes(c1, c2);
+    auto ring = Ring(c3, c4);
+    auto gradient = Gradient(c3, c2);
+    auto checker = Checker3D(c5, c4);
+    checker.transform = scaling(0.1, 0.1, 0.1);
+
+    auto box = Cube();
+    box.material.diffuse = 0.7f;
+    box.material.specular = 0.3f;
+    box.transform = scaling(10, 10, 10);
+    addPattern(&box.material, &checker);
+
+    auto hex = Group();
+    Group sides[6];
+    hexagon(&hex, &sides[0]);
+    hex.transform = rotationX(PI/2);
+
+    auto world = World();
+    world.lightSources.push_back(pointLight(point(-10, 10, -10), Color{ 1, 1, 1 }));
+    world.objects.push_back(&box);
+    world.objects.push_back(&hex);
+
+    auto camera = Camera(width, height, PI/3);
+    camera.transform = viewTransform(point(0, 1.5f, -5), point(0, 0, 0), vector(0, 1, 0));
+
+    auto canvas = render(camera, world, shadows);
+    canvasToPNG(&canvas, "hexagon.png");
+}
+
 #endif //RAYTRACERCHALLENGE_RENDER_FUNCTIONS_H
