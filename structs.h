@@ -52,21 +52,30 @@ struct Material{
     }
 };
 
+struct Bounds {
+    Tuple min;
+    Tuple max;
+};
+
 struct Object {
     unsigned int id;
     Matrix4x4 transform;
     Material material;
     Object* parent = nullptr;
+    Bounds bounds;
 
     Object(){
         static unsigned int cont = 0;
         id = cont++;
         transform = Matrix4x4();
         material = Material();
+        bounds = Bounds{point(-INFINITY, -INFINITY, -INFINITY), point(INFINITY, INFINITY, INFINITY)};
     }
 
     virtual ~Object() = default;
 };
+
+Bounds boundsFor(Object* object);
 
 struct Sphere : Object {
     Tuple origin{};
@@ -182,6 +191,10 @@ struct Group : Object{
 
         return false;
     }
+
+    void generateBounds(){
+        this->bounds = boundsFor(this);
+    }
 };
 
 struct Intersection{
@@ -239,6 +252,119 @@ struct World{
     World() = default;
 };
 
+struct Tuple2D {
+    double x;
+    double y;
+};
+
+Bounds localBoundsFor(Sphere* sphere){
+    return Bounds { point(-1, -1, -1), point(1, 1, 1) };
+}
+
+Bounds localBoundsFor(Plane* plane){
+    return Bounds { point(-INFINITY, 0, -INFINITY), point(INFINITY, 0, INFINITY) };
+}
+
+Bounds localBoundsFor(Cube* cube){
+    return Bounds { point(-1, -1, -1), point(1, 1, 1) };
+}
+
+Bounds localBoundsFor(Cone* cone){
+    return Bounds { point(-1, cone->minimumY, -1), point(1, cone->maximumY, 1) };
+}
+
+Bounds localBoundsFor(Cylinder* cylinder){
+    return Bounds { point(-1, cylinder->minimumY, -1), point(1, cylinder->maximumY, 1) };
+}
+
+Bounds localBoundsFor(Group* group){
+    auto bounds = Bounds{ point(INFINITY, INFINITY, INFINITY), point(-INFINITY, -INFINITY, -INFINITY) };
+
+    for(unsigned int i = 0; i < group->size(); i++){
+        auto object = group->get(i);
+        auto objectBound = boundsFor(object);
+
+        objectBound.min = objectBound.min * object->transform;
+        objectBound.max = objectBound.max * object->transform;
+
+        if(lengthSquared(objectBound.min) < lengthSquared(bounds.min)){
+            bounds.min = objectBound.min;
+        }
+
+        if(lengthSquared(objectBound.max) < lengthSquared(bounds.max)){
+            bounds.max = objectBound.max;
+        }
+    }
+
+    return bounds;
+}
+
+Bounds boundsFor(Object* object){
+    auto pSphere = dynamic_cast<Sphere*>(object);
+    if(pSphere != nullptr){
+        return localBoundsFor(pSphere);
+    }
+
+    auto pPlane = dynamic_cast<Plane*>(object);
+    if(pPlane != nullptr){
+        return localBoundsFor(pPlane);
+    }
+
+    auto pCube = dynamic_cast<Cube*>(object);
+    if(pCube != nullptr){
+        return localBoundsFor(pCube);
+    }
+
+    auto pCone = dynamic_cast<Cone*>(object);
+    if(pCone != nullptr){
+        return localBoundsFor(pCone);
+    }
+
+    auto pCylinder = dynamic_cast<Cylinder*>(object);
+    if(pCylinder != nullptr){
+        return localBoundsFor(pCylinder);
+    }
+
+    auto pGroup = dynamic_cast<Group*>(object);
+    if(pGroup != nullptr){
+        return localBoundsFor(pGroup);
+    }
+}
+
+Tuple2D checkAxis(double origin, double direction, double min, double max){
+    auto tMinNumerator = (min - origin);
+    auto tMaxNumerator = (max - origin);
+
+    double tmin, tmax;
+    if(absolute(direction) >= EPSILON){
+        tmin = tMinNumerator / direction;
+        tmax = tMaxNumerator / direction;
+    }else{
+        tmin = tMinNumerator * INFINITY;
+        tmax = tMaxNumerator * INFINITY;
+    }
+
+    if(tmin > tmax){
+        double aux = tmin;
+        tmin = tmax;
+        tmax = aux;
+    }
+
+    return Tuple2D{ tmin, tmax };
+}
+
+//TODO: Pode ser otimizado
+bool intersectsBounds(Ray ray, Bounds bounds){
+    auto xt = checkAxis(ray.origin.x, ray.direction.x, bounds.min.x, bounds.max.x);
+    auto yt = checkAxis(ray.origin.y, ray.direction.y, bounds.min.y, bounds.max.y);
+    auto zt = checkAxis(ray.origin.z, ray.direction.z, bounds.min.z, bounds.max.z);
+
+    auto tmin = max(xt.x, yt.x, zt.x);
+    auto tmax = min(xt.y, yt.y, zt.y);
+
+    return tmin <= tmax;
+}
+
 //Expects a local ray (needs to go through transform(ray, inverse(sphere.transform)))
 std::vector<Intersection> localIntersect(Ray ray, Sphere* sphere){
     auto sphere_to_ray = ray.origin - sphere->origin;
@@ -275,11 +401,6 @@ std::vector<Intersection> localIntersect(Ray ray, Plane* plane){
     }
     return lista;
 }
-
-struct Tuple2D {
-    double x;
-    double y;
-};
 
 Tuple2D checkAxis(double origin, double direction){
     auto tMinNumerator = (-1 - origin);
@@ -451,17 +572,21 @@ std::vector<Intersection> intersect(Ray ray, Object* object);
 
 std::vector<Intersection> localIntersect(Ray ray, Group* group){
     auto lista = std::vector<Intersection>();
-    for (unsigned int i = 0; i < group->size(); i++) {
-        for(auto intersection: intersect(ray, group->get(i))){
-            unsigned int pos = 0;
-            for(; pos < lista.size(); pos++){
-                if(lista[pos].time > intersection.time){
-                    break;
+
+    if(intersectsBounds(ray, group->bounds)){
+        for (unsigned int i = 0; i < group->size(); i++) {
+            for(auto intersection: intersect(ray, group->get(i))){
+                unsigned int pos = 0;
+                for(; pos < lista.size(); pos++){
+                    if(lista[pos].time > intersection.time){
+                        break;
+                    }
                 }
+                lista.insert(lista.begin() + pos, intersection);
             }
-            lista.insert(lista.begin() + pos, intersection);
         }
     }
+
     return lista;
 }
 

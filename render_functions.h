@@ -474,6 +474,7 @@ void drawHexagon(unsigned int width, unsigned int height, bool shadows){
     Group sides[6];
     hexagon(&hex, &sides[0]);
     hex.transform = rotationX(PI/2);
+    hex.generateBounds();
 
     auto world = World();
     world.lightSources.push_back(pointLight(point(-10, 10, -10), Color{ 1, 1, 1 }));
