@@ -16,7 +16,7 @@
 
 #define MAX_DEPTH 5
 Color colorAt(Ray ray, const World& world, bool shadows, unsigned int remaining = MAX_DEPTH);
-Color reflectedColor(const World &world, Computations comps, bool shadows, unsigned int remaining);
+Color reflectedColor(const World &world, Computations comps, Material material, bool shadows, unsigned int remaining);
 
 void addPattern(Material* material, Pattern* pattern){
     material->hasPattern = true;
@@ -207,8 +207,8 @@ bool isShadowed(World world, Tuple point){
     return false;
 }
 
-Color refractedColor(const World &world, Computations comps, bool shadows, unsigned int remaining){
-    auto transparency = comps.intersection.object->material.transparency;
+Color refractedColor(const World &world, Computations comps, Material material, bool shadows, unsigned int remaining){
+    auto transparency = material.transparency;
 
     if(transparency == 0 || remaining <= 0){
         return BLACK;
@@ -252,7 +252,15 @@ double schlick(Computations comps){
 }
 
 Color shadeHit(World world, Computations comps, bool shadows, unsigned int remaining){
-    auto material = comps.intersection.object->material;
+
+    auto object = comps.intersection.object;
+
+    Material material;
+    if(object->parent != nullptr){
+        material = object->parent->material;
+    }else{
+        material = object->material;
+    }
 
     auto surface = BLACK;
     for(auto light: world.lightSources){
@@ -260,8 +268,8 @@ Color shadeHit(World world, Computations comps, bool shadows, unsigned int remai
         surface = surface + lighting(material, comps.intersection.object, light, comps.overPoint, comps.eyev, comps.normalv, shadowed);
     }
 
-    auto reflected = reflectedColor(world, comps, shadows, remaining);
-    auto refracted = refractedColor(world, comps, shadows, remaining);
+    auto reflected = reflectedColor(world, comps, material, shadows, remaining);
+    auto refracted = refractedColor(world, comps, material, shadows, remaining);
 
     if(material.reflective > 0 && material.transparency > 0){
         auto reflectance = schlick(comps);
@@ -285,8 +293,8 @@ Color colorAt(Ray ray, const World& world, bool shadows, unsigned int remaining)
     return color;
 }
 
-Color reflectedColor(const World &world, Computations comps, bool shadows, unsigned int remaining){
-    auto reflective = comps.intersection.object->material.reflective;
+Color reflectedColor(const World &world, Computations comps, Material material, bool shadows, unsigned int remaining){
+    auto reflective = material.reflective;
     if(remaining <= 0 || reflective <= 0){
         return BLACK;
     }

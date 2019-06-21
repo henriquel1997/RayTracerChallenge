@@ -95,7 +95,26 @@ struct Cylinder : Object {
 
 struct Cone : Cylinder {};
 
+struct Triangle : Object{
+    Tuple p1;
+    Tuple p2;
+    Tuple p3;
+    Tuple e1;
+    Tuple e2;
+    Tuple normal;
+
+    Triangle(Tuple p1, Tuple p2, Tuple p3): Object() {
+        this->p1 = p1;
+        this->p2 = p2;
+        this->p3 = p3;
+        this->e1 = p2 - p1;
+        this->e2 = p3 - p1;
+        this->normal = normalize(cross(this->e2, this->e1));
+    }
+};
+
 struct Group : Object{
+    std::vector<Triangle> triangles = std::vector<Triangle>();
     std::vector<Sphere> spheres = std::vector<Sphere>();
     std::vector<Plane> planes = std::vector<Plane>();
     std::vector<Cube> cubes = std::vector<Cube>();
@@ -104,10 +123,16 @@ struct Group : Object{
     std::vector<Group> groups = std::vector<Group>();
 
     unsigned long long int size(){
-        return spheres.size() + planes.size() + cubes.size() + cylinders.size() + cones.size() + groups.size();
+        return triangles.size() + spheres.size() + planes.size() + cubes.size() + cylinders.size() + cones.size() + groups.size();
     }
 
     Object* get(unsigned int position){
+
+        if(position < triangles.size()){
+            return &triangles[position];
+        }
+        position -= triangles.size();
+
         if(position < spheres.size()){
             return &spheres[position];
         }
@@ -143,6 +168,12 @@ struct Group : Object{
     bool insert(Object* object){
 
         object->parent = this;
+
+        auto pTriangle = dynamic_cast<Triangle*>(object);
+        if(pTriangle != nullptr){
+            triangles.push_back(*pTriangle);
+            return true;
+        }
 
         auto pSphere = dynamic_cast<Sphere*>(object);
         if(pSphere != nullptr){
@@ -447,6 +478,31 @@ std::vector<Intersection> localIntersect(Ray ray, Cone* cone){
     return lista;
 }
 
+std::vector<Intersection> localIntersect(Ray ray, Triangle* triangle){
+    auto lista = std::vector<Intersection>();
+
+    auto dirCrossE2 = cross(ray.direction, triangle->e2);
+    auto det = dot(triangle->e1, dirCrossE2);
+
+    if(absolute(det) >= EPSILON){
+        auto f = 1.0 / det;
+        auto p1ToOrigin = ray.origin - triangle->p1;
+        auto u = f * dot(p1ToOrigin, dirCrossE2);
+
+        if(u >= 0 && u <= 1){
+            auto originCrossE1 = cross(p1ToOrigin, triangle->e1);
+            auto v = f * dot(ray.direction, originCrossE1);
+
+            if(v >= 0 && (u + v) <= 1){
+                auto t = f * dot(triangle->e2, originCrossE1);
+                lista.push_back(Intersection{triangle, t});
+            }
+        }
+    }
+
+    return lista;
+}
+
 std::vector<Intersection> intersect(Ray ray, Object* object);
 
 std::vector<Intersection> localIntersect(Ray ray, Group* group){
@@ -467,6 +523,11 @@ std::vector<Intersection> localIntersect(Ray ray, Group* group){
 
 std::vector<Intersection> intersect(Ray ray, Object* object){
     auto localRay = transform(ray, inverse(object->transform));
+
+    auto pTriangle = dynamic_cast<Triangle*>(object);
+    if(pTriangle != nullptr){
+        return localIntersect(localRay, pTriangle);
+    }
 
     auto pSphere = dynamic_cast<Sphere*>(object);
     if(pSphere != nullptr){
@@ -558,7 +619,17 @@ Tuple localNormalAt(Cone* cone, Tuple p){
     return vector(p.x, y, p.z);
 }
 
+Tuple localNormalAt(Triangle* triangle){
+    return triangle->normal;
+}
+
 Tuple localNormalAt(Object* object, Tuple p){
+
+    auto pTriangle = dynamic_cast<Triangle*>(object);
+    if(pTriangle != nullptr){
+        return localNormalAt(pTriangle);
+    }
+
     auto pSphere = dynamic_cast<Sphere*>(object);
     if(pSphere != nullptr){
         return localNormalAt(pSphere, p);
