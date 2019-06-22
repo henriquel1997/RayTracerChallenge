@@ -6,6 +6,7 @@
 #define RAYTRACERCHALLENGE_RENDER_FUNCTIONS_H
 
 #include "rendering.h"
+#include "obj_parser.h"
 
 void drawSphereRaycast(unsigned int canvasPixels){
 
@@ -527,6 +528,62 @@ void drawPyramid(unsigned int width, unsigned int height, bool shadows){
 
     auto canvas = render(camera, world, shadows);
     canvasToPNG(&canvas, "pyramid.png");
+}
+
+void drawTeapot(unsigned int width, unsigned int height, bool shadows){
+    auto c4 = WHITE;
+    auto c5 = BLACK;
+
+    auto checker = Checker3D(c5, c4);
+    checker.transform = scaling(0.1, 0.1, 0.1);
+
+    auto box = Cube();
+    box.material.diffuse = 0.7f;
+    box.material.specular = 0.3f;
+    box.transform = scaling(10, 10, 10);
+    addPattern(&box.material, &checker);
+
+    auto teapot = parseOBJFile(R"(C:\Dev\RayTracerChallenge\models\teapot-low.obj)");
+    teapot.transform = translation(0, -0.5, 0) * scaling(0.1, 0.1, 0.1) * rotationX(radians(-90));
+
+    auto world = World();
+    world.lightSources.push_back(pointLight(point(-10, 10, -10), Color{ 1, 1, 1 }));
+    world.objects.push_back(&box);
+    world.objects.push_back(&teapot);
+
+    auto camera = Camera(width, height, PI/3);
+    camera.transform = viewTransform(point(0, 1.5f, -5), point(0, 0, 0), vector(0, 1, 0));
+
+    auto canvas = render(camera, world, shadows);
+    canvasToPNG(&canvas, "teapot.png");
+}
+
+void drawTeddy(unsigned int width, unsigned int height, bool shadows){
+    auto c4 = WHITE;
+    auto c5 = BLACK;
+
+    auto checker = Checker3D(c5, c4);
+    checker.transform = scaling(0.1, 0.1, 0.1);
+
+    auto box = Cube();
+    box.material.diffuse = 0.7f;
+    box.material.specular = 0.3f;
+    box.transform = scaling(10, 10, 10);
+    addPattern(&box.material, &checker);
+
+    auto teddy = parseOBJFile(R"(C:\Dev\RayTracerChallenge\models\teddy.obj)");
+    teddy.transform = scaling(0.1, 0.1, 0.1) * rotationY(radians(180));
+
+    auto world = World();
+    world.lightSources.push_back(pointLight(point(-10, 10, -10), Color{ 1, 1, 1 }));
+    world.objects.push_back(&box);
+    world.objects.push_back(&teddy);
+
+    auto camera = Camera(width, height, PI/3);
+    camera.transform = viewTransform(point(0, 1.5f, -5), point(0, 0, 0), vector(0, 1, 0));
+
+    auto canvas = render(camera, world, shadows);
+    canvasToPNG(&canvas, "teddy.png");
 }
 
 #endif //RAYTRACERCHALLENGE_RENDER_FUNCTIONS_H

@@ -126,7 +126,7 @@ struct Group : Object{
         return triangles.size() + spheres.size() + planes.size() + cubes.size() + cylinders.size() + cones.size() + groups.size();
     }
 
-    Object* get(unsigned int position){
+    Object* get(unsigned long long position){
 
         if(position < triangles.size()){
             return &triangles[position];
@@ -507,7 +507,7 @@ std::vector<Intersection> intersect(Ray ray, Object* object);
 
 std::vector<Intersection> localIntersect(Ray ray, Group* group){
     auto lista = std::vector<Intersection>();
-    for (unsigned int i = 0; i < group->size(); i++) {
+    for (unsigned long long i = 0; i < group->size(); i++) {
         for(auto intersection: intersect(ray, group->get(i))){
             unsigned int pos = 0;
             for(; pos < lista.size(); pos++){
