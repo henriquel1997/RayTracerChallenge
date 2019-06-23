@@ -15,15 +15,17 @@ struct VerticeAndNormalIndex{
     long int normal;
 };
 
-VerticeAndNormalIndex getVerticeAndNormalIndex(char *text, char **out){
+VerticeAndNormalIndex getVerticeAndNormalIndex(char* text, char** out){
     long int vertice = strtol(text, out, 0);
 
     long int normal = 0;
     if(out[0][0] == '/'){
-        do{
+        out[0] = out[0] + 1;
+        while(out[0][0] != '/'){
             out[0] = out[0] + 1;
-        }while(out[0][0] != '/');
-        normal = strtol(*out, out, 0);
+        }
+        out[0] = out[0] + 1;
+        normal = strtol(out[0], out, 0);
     }
 
     while(out[0][0] != ' ' && out[0][0] != '\n'){
