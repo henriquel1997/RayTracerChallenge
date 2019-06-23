@@ -7,6 +7,7 @@
 
 #include "color.h"
 #include "structs.h"
+#include "normal.h"
 
 //TODO: Radial Gradient, Perlin Noise
 struct Stripes: Pattern{ Stripes(Color a, Color b): Pattern(a, b){} };

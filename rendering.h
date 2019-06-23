@@ -13,6 +13,7 @@
 #include "transformations.h"
 #include "pattern.h"
 #include "structs.h"
+#include "intersect.h"
 
 #define MAX_DEPTH 5
 Color colorAt(Ray ray, const World& world, bool shadows, unsigned int remaining = MAX_DEPTH);
@@ -60,7 +61,7 @@ Color lighting(Material material, Object* object, Light light, Tuple point, Tupl
     //Find the direction to the light source
     auto lightv = normalize(light.position - point);
 
-    //lightDotNormal represents the cosine of the angle between the light vector and the normal vector.
+    //lightDotNormal represents the cosine of the angle between the light vector and the n1 vector.
     //A negative number means the light is on the other side of the surface.
     auto lightDotNormal = dot(lightv, normalv);
 
@@ -147,7 +148,7 @@ Computations prepareComputations(Ray ray, Intersection hit, std::vector<Intersec
     comps.intersection = hit;
     comps.point = position(ray, hit.time);
     comps.eyev = - ray.direction;
-    comps.normalv = normalAt(hit.object, comps.point);
+    comps.normalv = normalAt(hit.object, comps.point, hit);
     comps.inside = dot(comps.normalv, comps.eyev) < 0;
 
     if(comps.inside){

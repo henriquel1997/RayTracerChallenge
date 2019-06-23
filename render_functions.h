@@ -66,7 +66,7 @@ void drawSpherePhong(unsigned int canvasPixels){
 
             if(closest.time >= 0){
                 auto point = position(ray, closest.time);
-                auto normal = normalAt(&s, point);
+                auto normal = normalAt(&s, point, closest);
                 auto eye = - ray.direction;
 
                 auto color = lighting(s.material, &s, light, point, eye, normal, false);
@@ -545,6 +545,7 @@ void drawTeapot(unsigned int width, unsigned int height, bool shadows){
 
     auto teapot = parseOBJFile(R"(C:\Dev\RayTracerChallenge\models\teapot-low.obj)");
     teapot.transform = translation(0, -0.5, 0) * scaling(0.1, 0.1, 0.1) * rotationX(radians(-90));
+    divide(&teapot, 10);
 
     auto world = World();
     world.lightSources.push_back(pointLight(point(-10, 10, -10), Color{ 1, 1, 1 }));

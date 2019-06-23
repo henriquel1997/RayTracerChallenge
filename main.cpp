@@ -16,8 +16,8 @@ int main() {
     //drawCylinder(1000, 1000, true);
     //drawHexagon(1000, 1000, true);
     //drawPyramid(1000, 1000, true);
-    //drawTeapot(1000, 1000, true);
-    drawTeddy(1000, 1000, true);
+    drawTeapot(1000, 1000, true);
+    //drawTeddy(100, 100, true);
     auto endTime = high_resolution_clock::now();
     auto totalTime = duration_cast<milliseconds>(endTime - startTime).count();
     printf("Time: %lli(ms)\n", totalTime);

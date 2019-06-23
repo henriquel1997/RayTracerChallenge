@@ -5,8 +5,13 @@
 #ifndef RAYTRACERCHALLENGE_UTIL_H
 #define RAYTRACERCHALLENGE_UTIL_H
 
+#include "float.h"
+#include <limits>
+
 #define EPSILON 0.00001
 #define PI 3.14159265358979323846f
+#define MAXDOUBLE DBL_MAX
+#define MINDOUBLE -DBL_MAX
 
 double absolute(double f){
     if(f < 0){

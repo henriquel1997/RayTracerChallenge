@@ -10,12 +10,27 @@
 #include <cstdlib>
 #include "structs.h"
 
-long int getFaceIndex(char* text, char** out){
-    auto index = strtol(text, out, 0);
+struct VerticeAndNormalIndex{
+    long int vertice;
+    long int normal;
+};
+
+VerticeAndNormalIndex getVerticeAndNormalIndex(char *text, char **out){
+    long int vertice = strtol(text, out, 0);
+
+    long int normal = 0;
+    if(out[0][0] == '/'){
+        do{
+            out[0] = out[0] + 1;
+        }while(out[0][0] != '/');
+        normal = strtol(*out, out, 0);
+    }
+
     while(out[0][0] != ' ' && out[0][0] != '\n'){
         out[0] = out[0] + 1;
     }
-    return index;
+
+    return VerticeAndNormalIndex{vertice, normal};
 }
 
 //TODO: Pode retornar triangle mesh ao invés de um group para ficar mais otimizado
@@ -26,6 +41,7 @@ Group parseOBJFile(const char* file){
     char* aux = nullptr;
 
     auto vertices = std::vector<Tuple>();
+    auto normais = std::vector<Tuple>();
 
     auto group = Group();
 
@@ -76,16 +92,17 @@ Group parseOBJFile(const char* file){
 
             }else if(line[0] == 'f'){
                 //Face
-                auto indices = std::vector<long int>();
+                auto indices = std::vector<VerticeAndNormalIndex>();
 
                 //Coloca na lista todos os índices da linha
-                auto index = getFaceIndex(&line[2], &aux);
-                if(index > 0 && index <= vertices.size()){
-                    indices.push_back(index);
+                auto verticeAndNormal = getVerticeAndNormalIndex(&line[2], &aux);
+
+                if(verticeAndNormal.vertice > 0 && verticeAndNormal.vertice <= vertices.size()){
+                    indices.push_back(verticeAndNormal);
                     while(aux[0] != '\n'){
-                        index = getFaceIndex(aux, &aux);
-                        if(index > 0 && index <= vertices.size()){
-                            indices.push_back(index);
+                        verticeAndNormal = getVerticeAndNormalIndex(aux, &aux);
+                        if(verticeAndNormal.vertice > 0 && verticeAndNormal.vertice <= vertices.size()){
+                            indices.push_back(verticeAndNormal);
                         }else{
                             break;
                         }
@@ -102,11 +119,31 @@ Group parseOBJFile(const char* file){
                 }
 
                 //Fan Triangulation
+                auto v1 = indices[0].vertice;
+                auto n1 = indices[0].normal;
                 for(unsigned int i = 1; i < indices.size() - 1; i++){
-                    g->insert(new Triangle(vertices[indices[0] - 1], vertices[indices[i] - 1], vertices[indices[i + 1] - 1]));
-                }
+                    auto v2 = indices[i].vertice;
+                    auto n2 = indices[i].normal;
+                    auto v3 = indices[i + 1].vertice;
+                    auto n3 = indices[i + 1].normal;
 
-                printf("");
+                    if(n1 == 0 && n2 == 0 && n3 == 0){
+                        //Triângulo Comum
+                        g->insert(new Triangle(vertices[v1 - 1], vertices[v2 - 1], vertices[v3 - 1]));
+                    }else{
+                        //Smooth Triangle
+                        g->insert(new Triangle(vertices[v1 - 1], vertices[v2 - 1], vertices[v3 - 1], normais[n1 - 1], normais[n2 - 1], normais[n3 - 1]));
+                    }
+                }
+            }
+        }else if(line[2] == ' '){
+            //Normais dos Vértices
+            if(line[0] == 'v' && line[1] == 'n'){
+                auto n1 = strtod(&line[3], &aux);
+                auto n2 = strtod(aux, &aux);
+                auto n3 = strtod(aux, nullptr);
+
+                normais.push_back(vector(n1, n2, n3));
             }
         }
     }
