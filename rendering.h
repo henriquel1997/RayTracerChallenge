@@ -257,7 +257,8 @@ Color shadeHit(World world, Computations comps, bool shadows, unsigned int remai
     auto object = comps.intersection.object;
 
     Material material;
-    if(object->parent != nullptr){
+    //Se o pai for um grupo, usar o material dele
+    if(object->parent != nullptr && dynamic_cast<Group*>(object->parent) != nullptr){
         material = object->parent->material;
     }else{
         material = object->material;

@@ -543,8 +543,11 @@ void drawTeapot(unsigned int width, unsigned int height, bool shadows){
     box.transform = scaling(10, 10, 10);
     addPattern(&box.material, &checker);
 
-    auto teapot = parseOBJFile(R"(C:\Dev\RayTracerChallenge\models\teapot-low.obj)");
-    teapot.transform = translation(0, -0.5, 0) * scaling(0.1, 0.1, 0.1) * rotationX(radians(-90));
+    //auto teapot = parseOBJFile(R"(C:\Dev\RayTracerChallenge\models\teapot-low.obj)");
+    //teapot.transform = translation(0, -0.5, 0) * scaling(0.1, 0.1, 0.1) * rotationX(radians(-90));
+
+    auto teapot = parseOBJFile(R"(C:\Dev\RayTracerChallenge\models\Teapot_1.obj)");
+    teapot.transform = translation(0, -0.5, 0) * scaling(0.05, 0.05, 0.05);
     divide(&teapot, 10);
 
     auto world = World();
@@ -585,6 +588,93 @@ void drawTeddy(unsigned int width, unsigned int height, bool shadows){
 
     auto canvas = render(camera, world, shadows);
     canvasToPNG(&canvas, "teddy.png");
+}
+
+void drawCSGTest(unsigned int width, unsigned int height, bool shadows){
+    auto c4 = WHITE;
+    auto c5 = BLACK;
+
+    auto checker = Checker3D(c5, c4);
+    checker.transform = scaling(0.1, 0.1, 0.1);
+
+    auto box = Cube();
+    box.material.diffuse = 0.7f;
+    box.material.specular = 0.3f;
+    box.transform = scaling(10, 10, 10);
+    addPattern(&box.material, &checker);
+
+    auto cube = Cube();
+    cube.material.color = Color{1, 1, 0};
+
+    auto sphere = Sphere();
+    sphere.transform = translation(0.5, 0.5, -0.5);
+    sphere.material.color = RED;
+
+    auto csg = CSG(DIFFERENCE, &cube, &sphere);
+
+    auto world = World();
+    world.lightSources.push_back(pointLight(point(-10, 10, -10), Color{ 1, 1, 1 }));
+    world.objects.push_back(&box);
+    world.objects.push_back(&csg);
+
+    auto camera = Camera(width, height, PI/3);
+    camera.transform = viewTransform(point(0, 1.5f, -5), point(0, 0, 0), vector(0, 1, 0));
+
+    auto canvas = render(camera, world, shadows);
+    canvasToPNG(&canvas, "csg.png");
+}
+
+//TODO: Unfinished
+void drawDices(unsigned int width, unsigned int height, bool shadows){
+    double lgVal = 220.0/255.0;
+    double dgVal = 169.0/169.0;
+
+    auto lightGray = Color{lgVal, lgVal, lgVal};
+    auto darkGray = Color{dgVal, dgVal, dgVal};
+
+    auto checker = Checker3D(lightGray, darkGray);
+    checker.transform = scaling(0.1, 0.1, 0.1);
+
+    auto box = Cube();
+    box.material.diffuse = 0.7f;
+    box.material.specular = 0.3f;
+    box.transform = scaling(10, 10, 10);
+    addPattern(&box.material, &checker);
+
+    auto cube = Cube();
+    cube.material.color = BLUE;
+
+    //1
+    auto sphere1 = Sphere();
+    sphere1.transform = translation(0, 0, -1) * scaling(0.2, 0.2, 0.2);
+    sphere1.material.color = WHITE;
+
+    auto dice1 = CSG(DIFFERENCE, &cube, &sphere1);
+    dice1.transform = rotationY(radians(90));
+
+    //2
+    auto sphere2_1 = Sphere();
+    sphere2_1.transform = translation(0.5, 0.5, -1) * scaling(0.2, 0.2, 0.2);
+    sphere2_1.material.color = WHITE;
+
+    auto sphere2_2 = Sphere();
+    sphere2_2.transform = translation(-0.5, -0.5, -1) * scaling(0.2, 0.2, 0.2);
+    sphere2_2.material.color = WHITE;
+
+    //auto two = CSG(UNION, &sphere2_1, &sphere2_2);
+
+    auto dice2 = CSG(DIFFERENCE, &dice1, &sphere2_1);
+
+    auto world = World();
+    world.lightSources.push_back(pointLight(point(-10, 10, -10), Color{ 1, 1, 1 }));
+    world.objects.push_back(&box);
+    world.objects.push_back(&dice2);
+
+    auto camera = Camera(width, height, PI/3);
+    camera.transform = viewTransform(point(0, 1.5f, -5), point(0, 0, 0), vector(0, 1, 0));
+
+    auto canvas = render(camera, world, shadows);
+    canvasToPNG(&canvas, "dices.png");
 }
 
 #endif //RAYTRACERCHALLENGE_RENDER_FUNCTIONS_H

@@ -116,6 +116,7 @@ BoundingBox boundsOf(Triangle* triangle){
 }
 
 BoundingBox boundsOf(Group* group);
+BoundingBox boundsOf(CSG* csg);
 
 BoundingBox boundsOf(Object* object){
 
@@ -154,6 +155,11 @@ BoundingBox boundsOf(Object* object){
         return boundsOf(pGroup);
     }
 
+    auto pCSG = dynamic_cast<CSG*>(object);
+    if(pCSG != nullptr){
+        return boundsOf(pCSG);
+    }
+
     return BoundingBox();
 }
 
@@ -168,6 +174,13 @@ BoundingBox boundsOf(Group* group){
     for(unsigned int i = 0; i < group->size(); i++){
         bbox.add(parentSpaceBoundsOf(group->get(i)));
     }
+    return bbox;
+}
+
+BoundingBox boundsOf(CSG* csg){
+    auto bbox = BoundingBox();
+    bbox.add(parentSpaceBoundsOf(csg->left));
+    bbox.add(parentSpaceBoundsOf(csg->right));
     return bbox;
 }
 
@@ -278,13 +291,33 @@ void makeSubGroups(Group* group){
     }
 }
 
+void divide(Object* object, unsigned int threshold);
+void divide(CSG* csg, unsigned int threshold);
+
 void divide(Group* group, unsigned int threshold){
     if(group->size() >= threshold){
         makeSubGroups(group);
     }
 
-    for (auto &subGroup : group->groups) {
-        divide(&subGroup, threshold);
+    for(unsigned long long i = 0; i < group->size(); i++){
+        divide(group->get(i), threshold);
+    }
+}
+
+void divide(CSG* csg, unsigned int threshold){
+    divide(csg->left, threshold);
+    divide(csg->right, threshold);
+}
+
+void divide(Object* object, unsigned int threshold){
+    auto pGroup = dynamic_cast<Group*>(object);
+    if(pGroup != nullptr){
+        divide(pGroup, threshold);
+    }
+
+    auto pCSG = dynamic_cast<CSG*>(object);
+    if(pCSG != nullptr){
+        divide(pCSG, threshold);
     }
 }
 

@@ -243,7 +243,75 @@ std::vector<Intersection> localIntersect(Ray ray, Triangle* triangle){
     return lista;
 }
 
+bool intersectionAllowed(OperationCSG operation, bool leftHit, bool insideLeft, bool insideRight){
+    if(operation == UNION){
+        return (leftHit && !insideRight) || (!leftHit && !insideLeft);
+    }else if(operation == INTERSECTION){
+        return (leftHit && insideRight) || (!leftHit && insideLeft);
+    }else if(operation == DIFFERENCE){
+        return (leftHit && !insideRight) || (!leftHit && insideLeft);
+    }
+    return false;
+}
+
+std::vector<Intersection> filterIntersections(CSG* csg, const std::vector<Intersection> &intersections){
+    bool insideLeft = false;
+    bool insideRight = false;
+
+    auto result = std::vector<Intersection>();
+
+    for(auto i : intersections){
+        auto leftHit = csg->left->includes(i.object);
+
+        if(intersectionAllowed(csg->operation, leftHit, insideLeft, insideRight)){
+            result.push_back(i);
+        }
+
+        if(leftHit){
+            insideLeft = !insideLeft;
+        }else{
+            insideRight = !insideRight;
+        }
+    }
+
+    return result;
+}
+
 std::vector<Intersection> intersect(Ray ray, Object* object);
+
+std::vector<Intersection> localIntersect(Ray ray, CSG* csg){
+    auto result = std::vector<Intersection>();
+
+    //Chca se o raio intercede o CSG
+    if(intersects(ray, boundsOf(csg))){
+        //Insere as interseções do lado esquerdo em ordem
+        for(auto intersection : intersect(ray, csg->left)){
+            unsigned int pos = 0;
+            for(; pos < result.size(); pos++){
+                if(result[pos].time > intersection.time){
+                    break;
+                }
+            }
+            result.insert(result.begin() + pos, intersection);
+        }
+
+        //Insere as interseções do lado direito em ordem
+        for(auto intersection : intersect(ray, csg->right)){
+            unsigned int pos = 0;
+            for(; pos < result.size(); pos++){
+                if(result[pos].time > intersection.time){
+                    break;
+                }
+            }
+            result.insert(result.begin() + pos, intersection);
+        }
+
+        //Retorna o resultado filtrado
+        return filterIntersections(csg, result);
+    }
+
+    return result;
+}
 
 std::vector<Intersection> localIntersect(Ray ray, Group* group){
     auto lista = std::vector<Intersection>();
@@ -299,6 +367,11 @@ std::vector<Intersection> intersect(Ray ray, Object* object){
     auto pGroup = dynamic_cast<Group*>(object);
     if(pGroup != nullptr){
         return localIntersect(localRay, pGroup);
+    }
+
+    auto pCSG = dynamic_cast<CSG*>(object);
+    if(pCSG != nullptr){
+        return localIntersect(localRay, pCSG);
     }
 
     return std::vector<Intersection>();

@@ -66,6 +66,8 @@ struct Object {
     }
 
     virtual ~Object() = default;
+
+    bool includes(Object* o);
 };
 
 struct Sphere : Object {
@@ -96,18 +98,18 @@ struct Cylinder : Object {
 struct Cone : Cylinder {};
 
 struct Triangle : Object{
-    Tuple p1;
-    Tuple p2;
-    Tuple p3;
+    Tuple p1{};
+    Tuple p2{};
+    Tuple p3{};
 
-    Tuple e1;
-    Tuple e2;
+    Tuple e1{};
+    Tuple e2{};
 
     bool smooth;
 
-    Tuple n1;
-    Tuple n2;
-    Tuple n3;
+    Tuple n1{};
+    Tuple n2{};
+    Tuple n3{};
 
     Triangle(Tuple p1, Tuple p2, Tuple p3): Object() {
         this->p1 = p1;
@@ -134,6 +136,24 @@ struct Triangle : Object{
     }
 };
 
+enum OperationCSG {
+    UNION, INTERSECTION, DIFFERENCE
+};
+
+struct CSG : Object {
+    OperationCSG operation;
+    Object* left;
+    Object* right;
+
+    CSG(OperationCSG operation, Object* left, Object* right) : Object(){
+        this->operation = operation;
+        left->parent = this;
+        right->parent = this;
+        this->left = left;
+        this->right = right;
+    }
+};
+
 struct Group : Object{
     std::vector<Triangle> triangles = std::vector<Triangle>();
     std::vector<Sphere> spheres = std::vector<Sphere>();
@@ -142,6 +162,7 @@ struct Group : Object{
     std::vector<Cylinder> cylinders = std::vector<Cylinder>();
     std::vector<Cone> cones = std::vector<Cone>();
     std::vector<Group> groups = std::vector<Group>();
+    std::vector<CSG> csgs = std::vector<CSG>();
 
     unsigned long long int size(){
         return triangles.size() + spheres.size() + planes.size() + cubes.size() + cylinders.size() + cones.size() + groups.size();
@@ -181,6 +202,11 @@ struct Group : Object{
 
         if(position < groups.size()){
             return &groups[position];
+        }
+        position -= groups.size();
+
+        if(position < csgs.size()){
+            return &csgs[position];
         }
 
         return nullptr;
@@ -232,6 +258,12 @@ struct Group : Object{
             return true;
         }
 
+        auto pCSG = dynamic_cast<CSG*>(object);
+        if(pCSG != nullptr){
+            csgs.push_back(*pCSG);
+            return true;
+        }
+
         return false;
     }
 
@@ -277,8 +309,34 @@ struct Group : Object{
             groups.erase(groups.begin() + position);
             return;
         }
+        position -= groups.size();
+
+        if(position < csgs.size()){
+            csgs.erase(csgs.begin() + position);
+            return;
+        }
     }
 };
+
+bool Object::includes(Object* o){
+    auto pGroup = dynamic_cast<Group*>(o);
+    if(pGroup != nullptr){
+        for(unsigned int i = 0; i < pGroup->size(); i++){
+            if(pGroup->get(i)->includes(o)){
+                return true;
+            }
+        }
+        return false;
+    }
+
+    auto pCSG = dynamic_cast<CSG*>(o);
+    if(pCSG != nullptr){
+        return pCSG->left->includes(o) || pCSG->right->includes(o);
+    }
+
+    //Caso não for Grupo ou CSG
+    return this->id == o->id;
+}
 
 struct Intersection{
     Object* object;
@@ -336,5 +394,7 @@ struct World{
 
     World() = default;
 };
+
+
 
 #endif //RAYTRACERCHALLENGE_STRUCTS_H
